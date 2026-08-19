@@ -25,6 +25,12 @@ here is developed as a unit, so committing it means a clone builds without recon
 | `bash scripts/check-proto.sh` | Fail when the stubs and the contract disagree |
 | `bash scripts/vulncheck.sh` | `govulncheck` over every module |
 
+Standard library advisories are fixed by a Go patch release rather than by a
+change here, so CI installs the newest patch of the pinned minor
+(`check-latest` on `actions/setup-go`) and the scan blocks on anything it still
+reports. If it flags the standard library locally, your toolchain is behind
+CI's.
+
 ## The protocol contract
 
 `proto/celerity/runtime/v1/runtime.proto` is vendored from the Celerity

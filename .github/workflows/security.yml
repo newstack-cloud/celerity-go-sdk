@@ -21,6 +21,11 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
+          # Without check-latest, setup-go prefers a toolchain already cached
+          # on the runner, so "1.26" matched the image's go1.26.5 and never
+          # fetched go1.26.6, leaving two patched standard library advisories
+          # reported against every build.
+          check-latest: true
       - run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - run: bash scripts/vulncheck.sh
 

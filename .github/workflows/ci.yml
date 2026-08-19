@@ -23,6 +23,9 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
+          # Newest patch release, so a cached toolchain cannot hold back a
+          # security fix. See the CI workflow.
+          check-latest: true
           cache-dependency-path: "**/go.sum"
 
       - name: Install tooling
@@ -80,6 +83,9 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
+          # Newest patch release, so a cached toolchain cannot hold back a
+          # security fix. See the CI workflow.
+          check-latest: true
           cache-dependency-path: "**/go.sum"
 
       - name: Build each module without the workspace
@@ -102,6 +108,9 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
+          # Newest patch release, so a cached toolchain cannot hold back a
+          # security fix. See the CI workflow.
+          check-latest: true
           cache-dependency-path: "**/go.sum"
 
       - name: Log in to the container registry

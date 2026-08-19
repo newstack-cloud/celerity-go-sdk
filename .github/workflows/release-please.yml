@@ -53,6 +53,9 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
+          # Newest patch release, so a cached toolchain cannot hold back a
+          # security fix. See the CI workflow.
+          check-latest: true
           cache-dependency-path: "**/go.sum"
 
       # GOWORK=off so the workspace cannot satisfy the module's require of core
