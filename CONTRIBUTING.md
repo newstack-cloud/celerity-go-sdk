@@ -36,9 +36,8 @@ rather than in CI.
 
 Changing the vendored `.proto` without regenerating leaves the two out of step,
 so do both in the same commit and review the generated diff: it is the clearest
-signal of whether the change was additive or breaking. CI checks for drift in
-both directions, including against the runtime's own copy when
-`CELERITY_RUNTIME_PROTO_DIR` points at it.
+signal of whether the change was additive or breaking. CI checks both, and
+checks the vendored copy against the runtime's on every run.
 
 Regenerating needs only buf:
 
@@ -53,10 +52,19 @@ buf is also what lints the contract and checks it for breaking changes, which is
 the same tool the runtime repository uses on the same file, so the two cannot
 disagree about what the contract says.
 
-`scripts/check-proto.sh` runs all of it: lint, a breaking-change check against
-`origin/main`, and a regeneration diffed against the committed stubs. Point
-`CELERITY_RUNTIME_PROTO_DIR` at the runtime repository's `proto` directory to
-also check the vendored copy has not fallen behind it.
+`scripts/check-proto.sh` runs three checks:
+
+1. `buf lint`, so a malformed contract is caught here.
+2. The vendored contract against the runtime's. The Celerity monorepo is
+   public, so buf reads the upstream contract straight out of it. It is the authoritative check where byte-identical is stricter
+   than compatible, and it is the right requirement, because this repository is
+   not where the contract is decided. When they differ, the difference is
+   classified as breaking or compatible, since that is what decides whether a
+   sync is routine.
+3. A regeneration, diffed against the committed stubs.
+
+Set `CELERITY_RUNTIME_PROTO` to a local checkout of the monorepo's
+`libs/runtime/proto` to skip the fetch, which is faster and works offline.
 
 ## Commits
 

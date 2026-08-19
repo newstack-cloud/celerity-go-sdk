@@ -5,71 +5,65 @@ set -euo pipefail
 #
 # Three questions, each of which can go wrong silently:
 #
-#   1. Is the contract well formed?          buf lint
-#   2. Has our copy of it changed in a way
-#      that would break a peer?              buf breaking, against main
-#   3. Do the committed stubs match it?      generate and diff
+#   1. Is the contract well formed?              buf lint
+#   2. Is our copy of it the runtime's copy?     export the upstream and diff
+#   3. Do the committed stubs match ours?        regenerate and diff
 #
-# and a fourth when the runtime repository is available: has our copy fallen
-# behind theirs at all, which is stricter than compatible.
+# The contract is owned by the Celerity monorepo, which is public, so the second
+# check needs nothing arranged: buf reads the upstream contract straight out of
+# the repository. That makes it the authoritative one. Byte-identical is a
+# stricter requirement than merely compatible, and it is the right one, because
+# this repository is not where the contract is decided.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Any buf input: the public monorepo by default, or a path to a local checkout
+# through CELERITY_RUNTIME_PROTO, which is faster and works offline.
+UPSTREAM="${CELERITY_RUNTIME_PROTO:-https://github.com/newstack-cloud/celerity.git#branch=main,subdir=libs/runtime/proto}"
 
 if ! command -v buf > /dev/null; then
   echo "buf is not on PATH, see https://buf.build/docs/installation" >&2
   exit 1
 fi
 
-echo "linting the contract"
-(cd "$ROOT/proto" && buf lint)
-
-# Against main rather than against the runtime's copy, so this still says
-# something in a repository that has no runtime checkout: it catches an edit to
-# the vendored contract that would break a peer already speaking it.
-if git -C "$ROOT" rev-parse --verify --quiet origin/main > /dev/null; then
-  echo "checking the contract for breaking changes against origin/main"
-  (cd "$ROOT" && buf breaking proto --against ".git#ref=origin/main,subdir=proto") || {
-    echo ""
-    echo "The contract changed in a way that breaks a peer already speaking it."
-    echo "Renaming or renumbering a field, changing its type or removing it needs"
-    echo "a v2 package served alongside v1 through a deprecation window."
-    exit 1
-  }
-else
-  echo "skipping the breaking-change check, origin/main is not available"
-fi
-
-echo "checking the generated stubs are in step with the contract"
 staging="$(mktemp -d)"
 trap 'rm -rf "$staging"' EXIT
 
-bash "$SCRIPT_DIR/gen-proto.sh" "$staging" > /dev/null
+echo "linting the contract"
+(cd "$ROOT/proto" && buf lint)
 
-if ! diff -ru "$ROOT/internal/ipcproto/celerityv1" "$staging" > "$staging.diff"; then
+echo "checking the vendored contract against the runtime's"
+buf export "$UPSTREAM" -o "$staging/upstream"
+
+if ! diff -ru "$staging/upstream/celerity" "$ROOT/proto/celerity"; then
+  echo ""
+  echo "The vendored contract is not the runtime's."
+  echo ""
+  # Whether the drift is breaking is the thing worth knowing next: an additive
+  # change is a sync, and a breaking one needs a v2 package served alongside v1
+  # through a deprecation window.
+  echo "Classifying the difference:"
+  if (cd "$ROOT" && buf breaking proto --against "$UPSTREAM"); then
+    echo "  the difference is backwards compatible."
+  else
+    echo "  the difference is BREAKING, per the report above."
+  fi
+  echo ""
+  echo "Copy the runtime's contract over proto/, run scripts/gen-proto.sh, and"
+  echo "commit the .proto and the regenerated stubs together."
+  exit 1
+fi
+
+echo "checking the generated stubs are in step with the contract"
+bash "$SCRIPT_DIR/gen-proto.sh" "$staging/stubs" > /dev/null
+
+if ! diff -ru "$ROOT/internal/ipcproto/celerityv1" "$staging/stubs" > "$staging/stubs.diff"; then
   echo "the generated stubs are out of step with proto/:"
-  cat "$staging.diff"
+  cat "$staging/stubs.diff"
   echo ""
   echo "run: bash scripts/gen-proto.sh"
-  echo "and commit the .proto and the regenerated stubs together."
   exit 1
 fi
 
-# Only checked when the runtime repository is to hand: a contributor without it
-# should not be blocked by its absence, and CI supplies it explicitly.
-UPSTREAM="${CELERITY_RUNTIME_PROTO_DIR:-}"
-if [ -z "$UPSTREAM" ] || [ ! -d "$UPSTREAM" ]; then
-  echo "skipping the upstream check, set CELERITY_RUNTIME_PROTO_DIR to enable it"
-  exit 0
-fi
-
-echo "checking the vendored contract matches the runtime's"
-if ! diff -ru "$UPSTREAM/celerity" "$ROOT/proto/celerity"; then
-  echo ""
-  echo "the vendored contract has fallen behind the runtime's."
-  echo "copy it over proto/, run scripts/gen-proto.sh, and review the generated"
-  echo "diff: it is the clearest signal of whether the change was additive."
-  exit 1
-fi
-
-echo "the vendored contract matches the runtime's"
+echo "the contract matches the runtime's and the stubs are in step with it"
