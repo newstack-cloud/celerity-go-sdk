@@ -31,7 +31,28 @@ jobs:
   renovate:
     runs-on: ubuntu-latest
     steps:
+      # Renovate wants a token of its own rather than GITHUB_TOKEN, which cannot
+      # trigger CI on the pull requests it opens, leaving dependency bumps
+      # unverified. Until that secret is set there is nothing to run, and this
+      # is checked rather than left to fail: the schedule is hourly, so an
+      # unconfigured repository would otherwise report a failure every hour.
+      #
+      # The secrets context is not available to a job-level `if`, so the check
+      # is a step.
+      - id: token
+        env:
+          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+        run: |
+          if [ -z "$RENOVATE_TOKEN" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "RENOVATE_TOKEN is not set, so Renovate has nothing to run with."
+            echo "See docs/RENOVATE.md."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run Renovate
+        if: steps.token.outputs.configured == 'true'
         uses: renovatebot/github-action@v41.0.0
         with:
           token: ${{ secrets.RENOVATE_TOKEN }}

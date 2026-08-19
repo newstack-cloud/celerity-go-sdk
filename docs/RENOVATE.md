@@ -31,6 +31,16 @@ Commit types and scopes are constrained by
 outside that list produces PRs that fail their own commit hook. Adding a rule
 with a new scope means adding the scope there too.
 
+### The token
+
+Renovate runs with `RENOVATE_TOKEN`, a personal access token, rather than
+`GITHUB_TOKEN`. A pull request opened with `GITHUB_TOKEN` does not trigger
+workflows, so dependency bumps would arrive with no CI run against them, which
+is the one thing a dependency PR exists to provide.
+
+Until the secret is set the workflow reports that it has nothing to run and
+succeeds, rather than failing every hour on its schedule.
+
 ## Dependabot: security updates only
 
 There is deliberately **no `.github/dependabot.yml`**. That file configures

@@ -38,16 +38,25 @@ Changing the vendored `.proto` without regenerating leaves the two out of step,
 so do both in the same commit and review the generated diff: it is the clearest
 signal of whether the change was additive or breaking. CI checks for drift in
 both directions, including against the runtime's own copy when
-`CELERITY_RUNTIME_PROTO` points at it.
+`CELERITY_RUNTIME_PROTO_DIR` points at it.
 
-Regenerating needs protoc and the two Go plugins:
+Regenerating needs only buf:
 
 ```bash
-brew install protobuf
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-export PATH=$PATH:$(go env GOPATH)/bin
+brew install bufbuild/buf/buf
+bash scripts/gen-proto.sh
 ```
+
+The plugins are remote and pinned in `proto/buf.gen.yaml`, so there is nothing
+else to install and a fresh generation produces the same bytes on any machine.
+buf is also what lints the contract and checks it for breaking changes, which is
+the same tool the runtime repository uses on the same file, so the two cannot
+disagree about what the contract says.
+
+`scripts/check-proto.sh` runs all of it: lint, a breaking-change check against
+`origin/main`, and a regeneration diffed against the committed stubs. Point
+`CELERITY_RUNTIME_PROTO_DIR` at the runtime repository's `proto` directory to
+also check the vendored copy has not fallen behind it.
 
 ## Commits
 

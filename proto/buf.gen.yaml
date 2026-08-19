@@ -1,0 +1,29 @@
+version: v2
+
+# Go stubs for this SDK, generated from the vendored contract into
+# internal/ipcproto/celerityv1 and committed. Remote plugins, so the only tool
+# the protocol needs is buf itself, the same one that lints it and checks it for
+# compatibility: a developer's machine and CI cannot then disagree about which
+# compiler produced the checked-in stubs.
+#
+# The plugin versions are pinned. Unpinned, buf resolves the latest, so the
+# committed stubs would start differing from a fresh generation on the day a
+# plugin released, and the drift check would fail on a change nobody made.
+#
+# paths=source_relative puts the output at celerity/runtime/v1 within the
+# staging directory, which scripts/gen-proto.sh flattens into celerityv1. The M
+# option is what makes the generated package celerityv1 rather than v1.
+managed:
+  enabled: false
+
+plugins:
+  - remote: buf.build/protocolbuffers/go:v1.36.12
+    out: gen
+    opt:
+      - paths=source_relative
+      - Mcelerity/runtime/v1/runtime.proto=github.com/newstack-cloud/celerity-go-sdk/internal/ipcproto/celerityv1
+  - remote: buf.build/grpc/go:v1.6.2
+    out: gen
+    opt:
+      - paths=source_relative
+      - Mcelerity/runtime/v1/runtime.proto=github.com/newstack-cloud/celerity-go-sdk/internal/ipcproto/celerityv1

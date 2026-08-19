@@ -16,14 +16,18 @@ jobs:
       paths_released: ${{ steps.release.outputs.paths_released }}
       cli_tag: ${{ steps.release.outputs['cmd/celerity-go--tag_name'] }}
     steps:
-      # A personal access token rather than GITHUB_TOKEN. Releases created with
-      # GITHUB_TOKEN do not trigger further workflows, and while the build below
-      # is chained by job dependency rather than by a tag event, the tag also
-      # has to be visible to anything else watching for one.
+      # GITHUB_TOKEN is enough for this repository, so the workflow runs without
+      # any secret being configured. The one thing it cannot do is trigger
+      # another workflow from the release it creates, and nothing here needs
+      # that: the build below is chained by job dependency rather than by a tag
+      # event, precisely so a release and its assets cannot come apart.
+      #
+      # Set RELEASE_PLEASE_TOKEN to a personal access token if something outside
+      # this workflow ever has to react to the tag, and it will be preferred.
       - uses: googleapis/release-please-action@v4
         id: release
         with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
