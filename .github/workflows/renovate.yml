@@ -31,28 +31,15 @@ jobs:
   renovate:
     runs-on: ubuntu-latest
     steps:
-      # Renovate wants a token of its own rather than GITHUB_TOKEN, which cannot
-      # trigger CI on the pull requests it opens, leaving dependency bumps
-      # unverified. Until that secret is set there is nothing to run, and this
-      # is checked rather than left to fail: the schedule is hourly, so an
-      # unconfigured repository would otherwise report a failure every hour.
+      # RENOVATE_TOKEN is an organisation secret. It is a token of its own
+      # rather than GITHUB_TOKEN because a pull request opened with the latter
+      # does not trigger CI, leaving a dependency bump unverified, which is the
+      # one thing a dependency PR is for.
       #
-      # The secrets context is not available to a job-level `if`, so the check
-      # is a step.
-      - id: token
-        env:
-          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
-        run: |
-          if [ -z "$RENOVATE_TOKEN" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "RENOVATE_TOKEN is not set, so Renovate has nothing to run with."
-            echo "See docs/RENOVATE.md."
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          fi
-
+      # If it ever goes missing this job fails, which is what should happen: a
+      # scheduled job that quietly succeeds while doing nothing is a job you
+      # stop noticing has stopped.
       - name: Run Renovate
-        if: steps.token.outputs.configured == 'true'
         uses: renovatebot/github-action@v41.0.0
         with:
           token: ${{ secrets.RENOVATE_TOKEN }}

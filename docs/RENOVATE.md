@@ -33,13 +33,14 @@ with a new scope means adding the scope there too.
 
 ### The token
 
-Renovate runs with `RENOVATE_TOKEN`, a personal access token, rather than
+Renovate runs with `RENOVATE_TOKEN`, an organisation secret, rather than
 `GITHUB_TOKEN`. A pull request opened with `GITHUB_TOKEN` does not trigger
 workflows, so dependency bumps would arrive with no CI run against them, which
 is the one thing a dependency PR exists to provide.
 
-Until the secret is set the workflow reports that it has nothing to run and
-succeeds, rather than failing every hour on its schedule.
+The workflow does not guard against the secret being absent. If it goes missing
+the job fails, which is the right outcome for something on a schedule: a job
+that quietly succeeds while doing nothing is one you stop noticing has stopped.
 
 ## Dependabot: security updates only
 
