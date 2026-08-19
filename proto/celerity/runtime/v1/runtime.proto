@@ -1,0 +1,379 @@
+syntax = "proto3";
+
+// The contract between the Celerity runtime and a handlers executable running
+// as a separate process, used by SDKs for ahead-of-time compiled languages.
+//
+// Everything the runtime needs in order to make a decision is typed. Everything
+// else is `bytes`, which the runtime moves without inspecting. The runtime
+// routes, times out, traces and meters on the envelope.
+package celerity.runtime.v1;
+
+// Ordered values for one parameter or header name.
+//
+// Order within a name is significant (RFC 9110 section 5.3); order across names
+// is not. Protobuf maps cannot hold repeated values directly, so this wrapper
+// carries them.
+message Values {
+  repeated string values = 1;
+}
+
+// ─────────────────────────── runtime → handler ───────────────────────────
+
+message RuntimeMessage {
+  oneof frame {
+    // Sent first, before the handler's Ready, so an SDK can check the handlers
+    // registered in code against the ones the blueprint declares.
+    RuntimeConfig config = 1;
+    ReadyAck ready_ack = 2;
+    Dispatch dispatch = 3;
+    Cancel cancel = 4;
+    Drain drain = 5;
+    WsSendAck ws_ack = 6;
+  }
+}
+
+// ─────────────────────────── handler → runtime ───────────────────────────
+
+message HandlerMessage {
+  oneof frame {
+    Ready ready = 1;
+    Result result = 2;
+    CreditGrant credit = 3;
+    WsSend ws_send = 4;
+    Draining draining = 5;
+  }
+}
+
+// Declares what this handler process serves and how much work it can take.
+//
+// The runtime does not dispatch until this arrives, which is the readiness
+// signal a polling transport has no way to express.
+message Ready {
+  // The handler tags this process actually serves.
+  repeated string handler_tags = 1;
+  // Total events the runtime may have in flight to this process, across all
+  // tags. SDKs should set this to their worker pool size: throughput saturates
+  // there, and every unit beyond it adds latency for almost no throughput.
+  uint32 initial_credit = 2;
+  string sdk_version = 3;
+  // Optional per-tag concurrency caps, so one slow tag cannot consume the whole
+  // credit window and starve the others.
+  repeated HandlerLimit limits = 4;
+}
+
+message HandlerLimit {
+  string handler_tag = 1;
+  uint32 max_concurrent = 2;
+}
+
+// Reports whether the handler's registered tags line up with the blueprint.
+//
+// A mismatch is a startup error here rather than a 404 in production.
+message ReadyAck {
+  bool accepted = 1;
+  // Registered by the handler but absent from the blueprint.
+  repeated string unknown_tags = 2;
+  // Present in the blueprint but not registered by the handler.
+  repeated string unhandled_tags = 3;
+}
+
+// Returns credit to the runtime.
+//
+// Credit is purely additive, it is consumed when the runtime dispatches and
+// replenished only when the handler says so, never implicitly by a result
+// arriving. Grants are normally included with Result;
+// this frame exists for resizing the window,
+// for grants not tied to a completion, and for resuming after a
+// deliberate withhold.
+//
+// There is one credit window per stream, covering every tag it serves.
+// Isolation between tags is expressed by the concurrency caps in Ready, not by
+// separate credit pools, a cap is what stops one slow tag consuming the whole
+// window. Granting credit for a single tag would be a second mechanism for the
+// same concern, and would let one tag stall unnoticed while the others flow.
+message CreditGrant {
+  uint32 additional = 1;
+}
+
+message Dispatch {
+  string id = 1;
+  string handler_tag = 2;
+  uint64 timestamp_ms = 3;
+  // When the runtime stops waiting for this event. The handler should treat it
+  // as its own deadline; the runtime enforces it independently.
+  int64 deadline_unix_ms = 4;
+  // W3C traceparent and tracestate.
+  map<string, string> trace_context = 5;
+
+  oneof source {
+    HttpRequest http = 10;
+    WebSocketMessage websocket = 11;
+    ConsumerBatch consumer = 12;
+    ScheduleTrigger schedule = 13;
+    CustomInvoke custom = 14;
+  }
+}
+
+// Tells the handler to stop work nobody is waiting for.
+//
+// May arrive for an event that has already completed, which handlers must
+// ignore rather than treat as an error.
+message Cancel {
+  string id = 1;
+
+  enum Reason {
+    REASON_UNSPECIFIED = 0;
+    REASON_DEADLINE_EXCEEDED = 1;
+    // The originating caller went away, so nothing is waiting for the result.
+    // Sent when an HTTP client disconnects. Not sent when a WebSocket
+    // connection closes as a message is closer to a queue message than to a
+    // request and response, so the work is still worth finishing.
+    REASON_CALLER_GONE = 2;
+    REASON_SHUTDOWN = 3;
+  }
+
+  Reason reason = 2;
+}
+
+// The runtime is going away: it stops dispatching and waits for in-flight work.
+message Drain {
+  int64 deadline_unix_ms = 1;
+}
+
+// The handler is going away, letting a supervisor roll handler processes
+// without dropping work.
+message Draining {
+  int64 deadline_unix_ms = 1;
+}
+
+// ─────────────────────────────── HTTP ───────────────────────────────
+
+message HttpRequest {
+  // Uppercase and canonical.
+  string method = 1;
+  // Raw, percent-encoded as received.
+  string path = 2;
+  // The route template this request matched, in the router's own form, so a
+  // blueprint's /files/{path+} arrives as /files/{*path}. The same form the
+  // handler tag is built from.
+  string route = 3;
+  // A catch-all parameter yields one value per path segment. Segments are split
+  // from the raw path before being percent-decoded, so a segment containing an
+  // encoded separator survives intact.
+  map<string, Values> path_params = 4;
+  map<string, Values> query_params = 5;
+  // Names are lowercase.
+  map<string, Values> headers = 6;
+  string source_ip = 7;
+  string request_id = 8;
+  // Opaque. The runtime never parses this; the media type comes from the
+  // content-type header.
+  bytes body = 9;
+}
+
+message HttpResponse {
+  // 100 to 999. The smallest integer protobuf offers is wider than a status can
+  // be, so a value outside that range is a fault in the handler and the runtime
+  // answers 500 rather than narrowing it, which would let 65736 arrive as 200.
+  uint32 status = 1;
+  // Multi-valued, so a handler can emit two Set-Cookie headers, which RFC 9110
+  // forbids folding into one comma-separated value.
+  map<string, Values> headers = 2;
+  bytes body = 3;
+}
+
+// ─────────────────────────── other sources ───────────────────────────
+
+message WebSocketMessage {
+  string route = 1;
+  string connection_id = 2;
+  string source_ip = 3;
+  string request_id = 4;
+  bytes message = 5;
+  // Whether this arrived as a binary frame rather than a text one. A byte body
+  // alone cannot express the distinction, and the WebSocket protocol treats
+  // the two frame types as distinct.
+  bool is_binary = 6;
+  // The id this message is known by, which is the one the client gave it when
+  // it gave one and a runtime generated one otherwise.
+  //
+  // Distinct from request_id, which identifies the delivery. This identifies
+  // the message, so it is what an acknowledgement names and what a lost
+  // message notification refers to, and a handler needs it to tie its own
+  // instrumentation to what the client sees.
+  string message_id = 7;
+}
+
+message ConsumerBatch {
+  repeated ConsumerRecord records = 1;
+  string source_id = 2;
+  string source_type = 3;
+  // Provider-specific, opaque.
+  bytes vendor = 4;
+}
+
+message ConsumerRecord {
+  string message_id = 1;
+  bytes body = 2;
+  string source = 3;
+  string event_type = 4;
+  bytes attributes = 5;
+  bytes vendor = 6;
+}
+
+message ScheduleTrigger {
+  string schedule_id = 1;
+  string message_id = 2;
+  string schedule = 3;
+  bytes input = 4;
+  bytes vendor = 5;
+}
+
+message CustomInvoke {
+  string handler_name = 1;
+  bytes input = 2;
+}
+
+// ────────────────────────────── results ──────────────────────────────
+
+message Result {
+  string id = 1;
+  // Credit returned along with this result. Zero withholds, telling the runtime
+  // to stop dispatching to this stream until a later CreditGrant. SDKs should
+  // default to 1 and must send this even when the handler panics, since a
+  // missed grant drains the window and stalls the stream silently.
+  uint32 credit_grant = 2;
+
+  oneof outcome {
+    HttpResponse http = 10;
+    Ack websocket = 11;
+    BatchResult consumer = 12;
+    Ack schedule = 13;
+    CustomInvokeResult custom = 14;
+    // An unhandled error in user code.
+    HandlerError error = 15;
+  }
+}
+
+message Ack {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message BatchResult {
+  bool success = 1;
+  repeated RecordFailure failures = 2;
+}
+
+message RecordFailure {
+  string message_id = 1;
+  string error_message = 2;
+}
+
+message CustomInvokeResult {
+  // Opaque, and carried to whoever asked for the invocation exactly as sent.
+  // Whether it has to be text is that caller's constraint rather than this
+  // contract's. The runtime's local invoke endpoint answers in JSON, so it
+  // refuses output that is not valid UTF-8 rather than altering it.
+  bytes output = 1;
+  string error_message = 2;
+}
+
+message HandlerError {
+  string message = 1;
+  string type = 2;
+  string stack = 3;
+}
+
+// ─────────────────── side channel on the same stream ───────────────────
+
+message WsSend {
+  string correlation_id = 1;
+  repeated WsOutbound messages = 2;
+}
+
+message WsOutbound {
+  string connection_id = 1;
+  // Sent to the socket exactly as given.
+  //
+  // When is_binary is set this must be in the Celerity Binary Message Format,
+  // `<routeLength><route><requireAck><messageIdLength><messageId><message>`. A
+  // client reads every binary frame that is not a reserved one as a framed
+  // message, so raw bytes are not read as a payload, they are read as a route
+  // length, a route and an id, leaving the application a short payload under a
+  // route nothing serves. A message carrying no id sets both requireAck and
+  // messageIdLength to zero. The runtime refuses a binary message it cannot
+  // read as a frame rather than sending one no client can use, reporting it as
+  // a WsSendFailure for that message.
+  //
+  // Text messages are unconstrained beyond the protocol's reserved keys.
+  bytes message = 2;
+  bool is_binary = 3;
+  repeated string inform_clients_on_loss = 4;
+  // Identifies this message to the runtime, for the acknowledgement between
+  // nodes when the target connection lives on another one, and in the loss
+  // event delivered to the clients named in inform_clients_on_loss. Generated
+  // by the runtime when left empty, which is the right choice unless the
+  // handler needs to match a loss event back to what it sent.
+  //
+  // Not the message id the client sees. The runtime sends `message` to the
+  // socket exactly as given, so a client-visible id, and the acknowledgement
+  // and deduplication that depend on it, is something the handler puts in the
+  // payload it composes.
+  string message_id = 5;
+  // The connection that caused this message to be sent, carried through to the
+  // loss event so an informed client can tell who was being replied to. Only
+  // meaningful alongside inform_clients_on_loss.
+  string caller = 6;
+}
+
+// Reports what happened to each message in a WsSend.
+//
+// Failures are per message rather than per batch because a client has no way to
+// deduplicate: a message reaches it as a bare text or binary frame with no id,
+// so re-sending one that already arrived is visible to the application. A
+// handler must therefore be able to retry exactly what failed.
+message WsSendAck {
+  string correlation_id = 1;
+  // True when every message was delivered, equivalent to failures being empty.
+  bool success = 2;
+  repeated WsSendFailure failures = 3;
+}
+
+message WsSendFailure {
+  // Index into WsSend.messages. Identifies the message rather than message_id
+  // does, because the runtime generates that when the handler leaves it empty,
+  // so the handler may never have seen it.
+  uint32 index = 1;
+  string connection_id = 2;
+  string error_message = 3;
+}
+
+// ────────────────────────────── config ──────────────────────────────
+
+message RuntimeConfig {
+  bool tracing_enabled = 1;
+  bool metrics_enabled = 2;
+  repeated HandlerConfig handlers = 3;
+}
+
+message HandlerConfig {
+  // The blueprint resource this handler is declared as, which is what its
+  // handler tag is built from.
+  string handler_name = 1;
+  string handler_tag = 2;
+  int64 timeout_ms = 3;
+  bool tracing_enabled = 4;
+  // The name the blueprint publishes this handler under, from spec.handlerName.
+  // Empty when the blueprint does not set one. A deployment addresses a handler
+  // by this name, and the runtime's local invoke endpoint accepts it alongside
+  // the resource name.
+  string published_name = 5;
+}
+
+// One long-lived bidirectional stream carries everything: events, results,
+// configuration, WebSocket sends, handler-to-handler invocation, cancellation
+// and shutdown.
+service HandlerRuntimeService {
+  rpc EventStream(stream HandlerMessage) returns (stream RuntimeMessage);
+}

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -e
+
+# Formatting only. Anything slower belongs in CI: a pre-commit hook that takes
+# thirty seconds is a hook people disable.
+staged=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' | grep -v '^internal/ipcproto/' || true)
+
+if [ -z "$staged" ]; then
+  exit 0
+fi
+
+unformatted=$(gofmt -l $staged)
+if [ -n "$unformatted" ]; then
+  echo "these staged files are not gofmt-formatted:"
+  echo "$unformatted"
+  echo ""
+  echo "run: gofmt -w $unformatted"
+  exit 1
+fi

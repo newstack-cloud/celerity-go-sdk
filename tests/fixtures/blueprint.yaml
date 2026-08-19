@@ -1,0 +1,84 @@
+# The blueprint the runtime serves for the integration suite.
+#
+# Adapted from the runtime's own ipc-http-api fixture, so the handler tags it
+# declares are the ones the runtime builds from these annotations, and the SDK's
+# handshake either matches them exactly or fails at startup.
+#
+# The runtime identifier is not settled: os-only.debian13 or core.debian13. The
+# runtime does not read spec.runtime at all, it is the CLI's blueprint transform
+# that does, so this suite cannot tell a correct value from a wrong one and the
+# choice has to be checked there.
+version: 2025-11-02
+transform: celerity-2026-02-28
+
+resources:
+  ordersApi:
+    type: "celerity/api"
+    description: "An HTTP API with no auth, so IPC dispatch is exercised on its own."
+    metadata:
+      displayName: Orders API
+    linkSelector:
+      byLabel:
+        application: "orders"
+    spec:
+      protocols: ["http"]
+      tracingEnabled: false
+
+  getOrderHandler:
+    type: "celerity/handler"
+    metadata:
+      displayName: Get Order Handler
+      labels:
+        application: "orders"
+      annotations:
+        celerity.handler.http: true
+        celerity.handler.http.method: "GET"
+        celerity.handler.http.path: "/orders/{orderId}"
+    spec:
+      handlerName: Orders-GetOrderHandler-v1
+      codeLocation: "./handlers"
+      handler: "getOrder"
+      runtime: "os-only.debian13"
+      memory: 1024
+      timeout: 10
+      tracingEnabled: false
+
+  createOrderHandler:
+    type: "celerity/handler"
+    metadata:
+      displayName: Create Order Handler
+      labels:
+        application: "orders"
+      annotations:
+        celerity.handler.http: true
+        celerity.handler.http.method: "POST"
+        celerity.handler.http.path: "/orders"
+    spec:
+      handlerName: Orders-CreateOrderHandler-v1
+      codeLocation: "./handlers"
+      handler: "createOrder"
+      runtime: "os-only.debian13"
+      memory: 1024
+      timeout: 10
+      tracingEnabled: false
+
+  # A catch-all route, so segment splitting is exercised end to end: the
+  # blueprint's {filePath+} reaches a handler as the router's {*filePath}.
+  getFileHandler:
+    type: "celerity/handler"
+    metadata:
+      displayName: Get File Handler
+      labels:
+        application: "orders"
+      annotations:
+        celerity.handler.http: true
+        celerity.handler.http.method: "GET"
+        celerity.handler.http.path: "/files/{filePath+}"
+    spec:
+      handlerName: Orders-GetFileHandler-v1
+      codeLocation: "./handlers"
+      handler: "getFile"
+      runtime: "os-only.debian13"
+      memory: 1024
+      timeout: 10
+      tracingEnabled: false

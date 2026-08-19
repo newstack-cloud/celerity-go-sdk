@@ -1,0 +1,13 @@
+{
+  "name": "celerity-go-sdk",
+  "private": true,
+  "description": "Tooling-only package: commitlint for the Go SDK's conventional commits.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/newstack-cloud/celerity-go-sdk.git"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2"
+  }
+}

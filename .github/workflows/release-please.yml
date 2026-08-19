@@ -1,0 +1,70 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      paths_released: ${{ steps.release.outputs.paths_released }}
+      cli_tag: ${{ steps.release.outputs['cmd/celerity-go--tag_name'] }}
+    steps:
+      # A personal access token rather than GITHUB_TOKEN. Releases created with
+      # GITHUB_TOKEN do not trigger further workflows, and while the build below
+      # is chained by job dependency rather than by a tag event, the tag also
+      # has to be visible to anything else watching for one.
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # The library modules need no publishing step beyond the tag: the Go module
+  # proxy serves them from the repository. The build tool is a binary the
+  # Celerity CLI downloads, so it does.
+  #
+  # This is a job of this workflow rather than one triggered by the tag, so that
+  # the release and its assets cannot come apart: a tag event that is missed, or
+  # that arrives before the release exists, would leave a published release with
+  # nothing attached to it.
+  build-cli:
+    needs: release-please
+    if: contains(fromJSON(needs.release-please.outputs.paths_released || '[]'), 'cmd/celerity-go')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          cache-dependency-path: "**/go.sum"
+
+      # GOWORK=off so the workspace cannot satisfy the module's require of core
+      # with the checkout: a released binary must build from released modules.
+      - name: Build release archives
+        env:
+          GOWORK: "off"
+          TAG: ${{ needs.release-please.outputs.cli_tag }}
+        run: bash scripts/package-cli.sh
+
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: cmd/celerity-go/dist/*.tar.gz
+
+      - name: Attach archives to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.cli_tag }}
+        run: gh release upload "$TAG" cmd/celerity-go/dist/* --clobber

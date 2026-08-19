@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Conventional commits, checked before the commit lands rather than in CI where
+# rewriting the message means rewriting history.
+npx --no-install commitlint --edit "$1"

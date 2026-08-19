@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.26"
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: "**/go.sum"
+
+      - name: Install tooling
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install github.com/wadey/gocovmerge@latest
+
+      - name: Check formatting
+        run: bash scripts/check-format.sh
+
+      # The vendored contract and the generated stubs are committed, so both can
+      # drift from the runtime's copy. Checking here means a contract change
+      # upstream is a failing build rather than a protocol mismatch at runtime.
+      - name: Check generated stubs are in step with the contract
+        run: bash scripts/check-proto.sh
+
+      - name: Vet
+        run: bash scripts/lint.sh --vet-only
+
+      - name: Lint
+        run: bash scripts/lint.sh
+
+      - name: Build
+        run: bash scripts/build.sh
+
+      - name: Test
+        run: bash scripts/run-tests.sh
+
+      - name: Vulnerability scan
+        run: bash scripts/vulncheck.sh
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # Release builds run per module outside the workspace, so a go.work replace
+  # cannot mask a require that a consumer would fail to resolve.
+  module-isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: "**/go.sum"
+
+      - name: Build each module without the workspace
+        env:
+          GOWORK: "off"
+        run: bash scripts/build.sh
+
+  # The suite against a real Celerity runtime.
+  #
+  # A separate job from the main one because it is the only thing here that
+  # needs Docker and a network pull, so a failure in it reads as "the runtime
+  # disagrees with us" rather than as a broken build. The runtime version is
+  # pinned in .env.test, which run-tests.sh sources, so a runtime release cannot
+  # change what a run means without the change being committed.
+  runtime-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: "**/go.sum"
+
+      - name: Log in to the container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run the suite against a real runtime
+        run: bash scripts/run-tests.sh --with-runtime
+
+      - name: Runtime logs
+        if: failure()
+        run: docker compose --env-file .env.test -f docker-compose.test-deps.yml logs --no-log-prefix

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>newstack-cloud/renovate-config"],
+  "packageRules": [
+    {
+      "description": "The modules in this repository are released by release-please, which owns their versions. A Renovate bump would race the release PR that produces one.",
+      "matchPackageNames": ["github.com/newstack-cloud/celerity-go-sdk{/,}**"],
+      "enabled": false
+    },
+    {
+      "description": "Group third-party Go minor and patch updates into one weekly PR. Per-module scopes would be noise: a shared dependency moves in every module at once, so the PR is about the dependency rather than about any one module.",
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "go dependencies",
+      "semanticCommitType": "deps",
+      "semanticCommitScope": null
+    },
+    {
+      "description": "Major Go updates one PR at a time, since each needs reading rather than merging.",
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["major"],
+      "semanticCommitType": "deps",
+      "semanticCommitScope": null
+    },
+    {
+      "description": "grpc and protobuf move together with the checked-in stubs: a bump that changes generated output needs scripts/gen-proto.sh run in the same PR, which CI enforces. They are core's dependencies, so the scope is core.",
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["google.golang.org/grpc", "google.golang.org/protobuf"],
+      "groupName": "grpc and protobuf",
+      "semanticCommitType": "deps",
+      "semanticCommitScope": "core"
+    },
+    {
+      "description": "Workflow action pins, grouped and typed as CI rather than as a dependency change.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "semanticCommitType": "ci",
+      "semanticCommitScope": "deps"
+    },
+    {
+      "description": "The Go directive and toolchain are a deliberate choice across every module, not something to raise a PR for whenever a patch release lands.",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["golang"],
+      "enabled": false
+    }
+  ]
+}

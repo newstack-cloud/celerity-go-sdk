@@ -1,0 +1,21 @@
+version: v2
+modules:
+  - path: .
+lint:
+  use:
+    - STANDARD
+  # The wire contract is consumed by SDKs in several languages, so the standard
+  # rules are kept as-is rather than relaxed per-file, with one exception.
+  except:
+    # These two name a request and a response after the RPC that carries them,
+    # which fits a unary call. This service is a single bidirectional stream of
+    # frames, and its two envelopes are named for the direction they travel:
+    # a HandlerMessage is anything the handler sends, a RuntimeMessage anything
+    # the runtime sends. Renaming them to EventStreamRequest and
+    # EventStreamResponse would say something untrue, since a Result travelling
+    # from a handler is not a request and a Dispatch is not a response.
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+breaking:
+  use:
+    - FILE

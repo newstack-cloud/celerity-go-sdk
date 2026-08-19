@@ -1,0 +1,33 @@
+# Build output
+dist/
+bin/
+# The build tool's own binary, from `go build` inside its module directory.
+cmd/celerity-go/celerity-go
+# The handlers executable built for the runtime container.
+tests/.build/
+
+# Test and coverage output
+coverage/
+coverage.txt
+coverage.html
+report.json
+govet-report.out
+staticcheck.out
+
+# Written by `celerity-go generate` from the blueprint's deploy target. The
+# blueprint is the one answer to which platform an application is built for, so
+# a committed copy would be a second one.
+celerity_platform_gen.go
+
+# Design documents, kept locally and not committed.
+docs/design/
+
+# Tooling
+node_modules/
+.env.test.local
+
+# Editors
+.DS_Store
+.idea/
+
+CLAUDE.md

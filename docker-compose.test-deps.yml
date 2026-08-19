@@ -1,0 +1,26 @@
+# The runtime the integration suite exercises the SDK against.
+#
+# celerity-runtime-core is the os-only runtime: it hosts no language and instead
+# launches a handlers executable, talking to it over the IPC stream. That is
+# what a Go application built with this SDK is, so the binary is mounted in at
+# the path the image expects and the runtime supervises it.
+#
+# Started and stopped by scripts/run-tests.sh --with-runtime, which builds the
+# binary for the container's platform first.
+services:
+  runtime:
+    image: ghcr.io/newstack-cloud/celerity-runtime-core:${CELERITY_RUNTIME_VERSION:-0.1.0}
+    environment:
+      CELERITY_SERVICE_NAME: celerity-go-sdk-tests
+      CELERITY_LOG_FORMAT: json
+      # Published to the host, so the suite drives the runtime over HTTP rather
+      # than needing to reach the handler stream itself. The socket stays inside
+      # the container, which is where it belongs as a bind-mounted unix socket is
+      # unreliable on a Docker Desktop host and would be a second thing to
+      # debug when a test fails.
+      CELERITY_SERVER_LOOPBACK_ONLY: "false"
+    volumes:
+      - ./tests/.build/handlers:/opt/celerity/app/handlers:ro
+      - ./tests/fixtures/blueprint.yaml:/opt/celerity/app/blueprint.yaml:ro
+    ports:
+      - "${CELERITY_TEST_RUNTIME_PORT:-8080}:8080"

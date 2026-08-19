@@ -1,0 +1,38 @@
+{
+  "include-component-in-tag": true,
+  "tag-separator": "/",
+  "separate-pull-requests": true,
+  "bump-minor-pre-major": true,
+  "prerelease-type": "alpha",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance Improvements" },
+    { "type": "deps", "section": "Dependencies" },
+    { "type": "chore", "section": "Miscellaneous", "hidden": true }
+  ],
+  "pull-request-title-pattern": "chore: release ${component} ${version}",
+  "packages": {
+    ".": {
+      "release-type": "go",
+      "package-name": "celerity-go-sdk",
+      "include-component-in-tag": false,
+      "exclude-paths": ["serverless/aws", "resources/aws", "cmd/celerity-go"]
+    },
+    "serverless/aws": {
+      "release-type": "go",
+      "component": "serverless/aws",
+      "package-name": "serverless-aws"
+    },
+    "resources/aws": {
+      "release-type": "go",
+      "component": "resources/aws",
+      "package-name": "resources-aws"
+    },
+    "cmd/celerity-go": {
+      "release-type": "go",
+      "component": "cmd/celerity-go",
+      "package-name": "celerity-go-cli"
+    }
+  }
+}
