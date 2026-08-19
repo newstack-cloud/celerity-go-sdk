@@ -13,6 +13,10 @@ permissions:
   security-events: write
 
 jobs:
+  # The only place govulncheck runs. CI covers push and pull requests, and this
+  # workflow covers those plus a schedule, which is the trigger that matters, an
+  # advisory can be published against code nobody has touched, and a scan that
+  # only runs on a change would not find it until someone made one.
   vulncheck:
     name: Go vulnerability scan
     runs-on: ubuntu-latest
