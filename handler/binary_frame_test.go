@@ -2,8 +2,9 @@ package handler_test
 
 import (
 	"bytes"
-	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/suite"
 
 	"github.com/newstack-cloud/celerity-go-sdk/handler"
 )
@@ -11,8 +12,15 @@ import (
 // The frame layout is <routeLength><route><requireAck><messageIdLength><messageId><message>,
 // every length one byte. The runtime refuses a binary message it cannot read as
 // a frame, so these cases check the bytes rather than a round trip.
+type BinaryFrameTestSuite struct {
+	suite.Suite
+}
 
-func TestFrameBinaryMessage(t *testing.T) {
+func TestBinaryFrameTestSuite(t *testing.T) {
+	suite.Run(t, new(BinaryFrameTestSuite))
+}
+
+func (s *BinaryFrameTestSuite) Test_frames_are_laid_out_as_the_format_specifies() {
 	cases := []struct {
 		name       string
 		route      string
@@ -43,12 +51,6 @@ func TestFrameBinaryMessage(t *testing.T) {
 			want:    []byte{4, 'c', 'h', 'a', 't', 0x0, 0x0, 'h', 'i'},
 		},
 		{
-			name:       "ack is ignored without an id to acknowledge",
-			route:      "ping",
-			requireAck: true,
-			want:       []byte{4, 'p', 'i', 'n', 'g', 0x0, 0x0},
-		},
-		{
 			name:      "an empty payload is allowed",
 			route:     "ping",
 			messageID: "m1",
@@ -57,38 +59,41 @@ func TestFrameBinaryMessage(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		s.Run(tc.name, func() {
 			got, err := handler.FrameBinaryMessage(tc.route, tc.messageID, tc.requireAck, tc.message)
-			if err != nil {
-				t.Fatalf("FrameBinaryMessage returned %v", err)
-			}
-			if !bytes.Equal(got, tc.want) {
-				t.Errorf("FrameBinaryMessage = %v, want %v", got, tc.want)
-			}
+
+			s.Require().NoError(err)
+			s.Equal(tc.want, got)
 		})
 	}
 }
 
-func TestFrameBinaryMessageRejectsWhatTheRuntimeWould(t *testing.T) {
+func (s *BinaryFrameTestSuite) Test_framing_refuses_what_the_runtime_would() {
 	longValue := string(bytes.Repeat([]byte("a"), 256))
 
 	cases := []struct {
-		name      string
-		route     string
-		messageID string
-		want      error
+		name       string
+		route      string
+		messageID  string
+		requireAck bool
+		want       error
 	}{
-		{"no route", "", "m1", handler.ErrRouteRequired},
-		{"route longer than its length byte", longValue, "m1", handler.ErrRouteTooLong},
-		{"id longer than its length byte", "chat", longValue, handler.ErrMessageIDTooLong},
+		{"no route", "", "m1", false, handler.ErrRouteRequired},
+		{"route longer than its length byte", longValue, "m1", false, handler.ErrRouteTooLong},
+		{"id longer than its length byte", "chat", longValue, false, handler.ErrMessageIDTooLong},
+		// A client reads a route beginning with a reserved byte as one of the
+		// protocol's own messages rather than as the route it was meant to be.
+		{"route beginning with a reserved byte", "\x04ck", "m1", false, handler.ErrRouteReserved},
+		// Sending it anyway would leave the sender waiting for an answer that
+		// has nothing to name, so it is refused rather than quietly dropped.
+		{"asking to be acknowledged with no id", "chat", "", true, handler.ErrAckWithoutID},
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := handler.FrameBinaryMessage(tc.route, tc.messageID, false, nil)
-			if !errors.Is(err, tc.want) {
-				t.Errorf("FrameBinaryMessage error = %v, want %v", err, tc.want)
-			}
+		s.Run(tc.name, func() {
+			_, err := handler.FrameBinaryMessage(tc.route, tc.messageID, tc.requireAck, nil)
+
+			s.ErrorIs(err, tc.want)
 		})
 	}
 }

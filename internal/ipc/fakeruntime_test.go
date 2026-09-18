@@ -37,8 +37,18 @@ type fakeRuntime struct {
 	// dispatches. The stream stays open after it returns.
 	afterReady func(stream pb.HandlerRuntimeService_EventStreamServer) error
 
-	ready chan *pb.Ready
-	sent  chan *pb.HandlerMessage
+	// answerWsSend decides what a WsSend is acknowledged with. Unset answers
+	// success, which is what a runtime that delivered everything does; a
+	// function returning nil answers nothing at all, which is what a runtime
+	// that has stopped responding looks like from the handler's side.
+	answerWsSend func(send *pb.WsSend) *pb.WsSendAck
+
+	ready  chan *pb.Ready
+	sent   chan *pb.HandlerMessage
+	wsSent chan *pb.WsSend
+	// push carries frames a test sends after the handshake, for the ones whose
+	// timing depends on the handler having started, such as a cancellation.
+	push chan *pb.RuntimeMessage
 }
 
 func newFakeRuntime() *fakeRuntime {
@@ -47,6 +57,8 @@ func newFakeRuntime() *fakeRuntime {
 		accept: func(*pb.Ready) *pb.ReadyAck { return &pb.ReadyAck{Accepted: true} },
 		ready:  make(chan *pb.Ready, 1),
 		sent:   make(chan *pb.HandlerMessage, 16),
+		wsSent: make(chan *pb.WsSend, 16),
+		push:   make(chan *pb.RuntimeMessage, 16),
 	}
 }
 
@@ -82,6 +94,25 @@ func (f *fakeRuntime) EventStream(stream pb.HandlerRuntimeService_EventStreamSer
 				return
 			}
 			f.sent <- msg
+
+			// A handler blocks until its send is acknowledged, so this has to
+			// answer from the receive loop rather than from a test.
+			if send := msg.GetWsSend(); send != nil {
+				f.wsSent <- send
+
+				ack := &pb.WsSendAck{Success: true}
+				if f.answerWsSend != nil {
+					ack = f.answerWsSend(send)
+				}
+				if ack == nil {
+					continue
+				}
+
+				ack.CorrelationId = send.GetCorrelationId()
+				_ = stream.Send(&pb.RuntimeMessage{
+					Frame: &pb.RuntimeMessage_WsAck{WsAck: ack},
+				})
+			}
 		}
 	}()
 
@@ -94,8 +125,16 @@ func (f *fakeRuntime) EventStream(stream pb.HandlerRuntimeService_EventStreamSer
 	// The stream stays open until the client closes it. Returning here would
 	// end it, and a handler mid-dispatch would fail its send rather than
 	// deliver a result.
-	<-stream.Context().Done()
-	return nil
+	for {
+		select {
+		case frame := <-f.push:
+			if err := stream.Send(frame); err != nil {
+				return err
+			}
+		case <-stream.Context().Done():
+			return nil
+		}
+	}
 }
 
 // start serves the fake on a unix socket and returns its path.
@@ -160,4 +199,32 @@ func testContext(t *testing.T) context.Context {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(cancel)
 	return ctx
+}
+
+// awaitWsSend returns the next batch the handler asked the runtime to deliver.
+func (f *fakeRuntime) awaitWsSend(t *testing.T) *pb.WsSend {
+	t.Helper()
+	select {
+	case send := <-f.wsSent:
+		return send
+	case <-time.After(5 * time.Second):
+		t.Fatal("the handler never sent a websocket message")
+		return nil
+	}
+}
+
+// dispatchWebSocket sends one WebSocket message to the handler.
+func dispatchWebSocket(id, tag string) *pb.RuntimeMessage {
+	return &pb.RuntimeMessage{Frame: &pb.RuntimeMessage_Dispatch{
+		Dispatch: &pb.Dispatch{
+			Id:         id,
+			HandlerTag: tag,
+			Source: &pb.Dispatch_Websocket{Websocket: &pb.WebSocketMessage{
+				Route:        "$default",
+				ConnectionId: "conn-1",
+				MessageId:    "msg-1",
+				Message:      []byte(`{"hello":"world"}`),
+			}},
+		},
+	}}
 }
