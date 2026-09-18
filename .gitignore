@@ -31,3 +31,7 @@ node_modules/
 .idea/
 
 CLAUDE.md
+
+# Ignore the output binary of the test app but not its source code.
+testapp
+!tests/testapp

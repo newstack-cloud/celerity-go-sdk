@@ -9,7 +9,7 @@
 # binary for the container's platform first.
 services:
   runtime:
-    image: ghcr.io/newstack-cloud/celerity-runtime-core:${CELERITY_RUNTIME_VERSION:-0.1.0}
+    image: ghcr.io/newstack-cloud/celerity-runtime-core:${CELERITY_RUNTIME_VERSION:-0.2.0}
     environment:
       CELERITY_SERVICE_NAME: celerity-go-sdk-tests
       CELERITY_LOG_FORMAT: json

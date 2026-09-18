@@ -74,7 +74,11 @@ if [ -n "$RUN_RUNTIME_SUITE" ]; then
     # and it has to be built for the container's platform rather than the
     # developer's. The image is pulled first so its architecture can be read
     # rather than assumed.
-    image="ghcr.io/newstack-cloud/celerity-runtime-core:${CELERITY_RUNTIME_VERSION:-0.1.0}"
+    image="$(docker compose --env-file "$ROOT/.env.test" \
+      -f "$ROOT/docker-compose.test-deps.yml" config --images runtime)"
+
+    # Pulled on every run rather than only when absent, so a republished tag is
+    # picked up instead of being served from the local cache.
     docker pull -q "$image" > /dev/null
     arch="$(docker image inspect "$image" --format '{{.Architecture}}')"
 
