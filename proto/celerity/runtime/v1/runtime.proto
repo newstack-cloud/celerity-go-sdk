@@ -17,6 +17,16 @@ message Values {
   repeated string values = 1;
 }
 
+// The version of this protocol that one end of the stream speaks.
+//
+// Minor versions are additive, so a handler built against an earlier minor of
+// the same major serves unchanged against a later one. A different major is
+// not compatible in either direction.
+message ProtocolVersion {
+  uint32 major = 1;
+  uint32 minor = 2;
+}
+
 // ─────────────────────────── runtime → handler ───────────────────────────
 
 message RuntimeMessage {
@@ -59,6 +69,10 @@ message Ready {
   // Optional per-tag concurrency caps, so one slow tag cannot consume the whole
   // credit window and starve the others.
   repeated HandlerLimit limits = 4;
+  // The protocol version this handler was built against. Required. A handler
+  // that declares none was built against a version this contract cannot
+  // determine, and is refused rather than assumed to speak the current one.
+  ProtocolVersion protocol_version = 5;
 }
 
 message HandlerLimit {
@@ -75,6 +89,21 @@ message ReadyAck {
   repeated string unknown_tags = 2;
   // Present in the blueprint but not registered by the handler.
   repeated string unhandled_tags = 3;
+
+  enum RefusedReason {
+    REFUSED_REASON_UNSPECIFIED = 0;
+    // The tag lists above say which.
+    REFUSED_REASON_TAG_MISMATCH = 1;
+    // The handler declared no protocol version, or one whose major the runtime
+    // does not serve. The runtime's own version is in RuntimeConfig, which the
+    // handler already has by this point.
+    REFUSED_REASON_PROTOCOL_VERSION = 2;
+  }
+
+  // Unspecified where the handler was accepted, since the tag lists alone
+  // cannot tell a version refusal from an accepted handler with nothing to
+  // report.
+  RefusedReason refused_reason = 4;
 }
 
 // Returns credit to the runtime.
@@ -102,7 +131,13 @@ message Dispatch {
   // When the runtime stops waiting for this event. The handler should treat it
   // as its own deadline; the runtime enforces it independently.
   int64 deadline_unix_ms = 4;
-  // W3C traceparent and tracestate.
+  // The trace context of whatever produced the event, so a handler's spans
+  // continue the trace rather than starting one of their own. Carries the W3C
+  // trace context keys, `traceparent` and, where an upstream sent one,
+  // `tracestate`, alongside platform specific ids such as `xray_trace_id`.
+  //
+  // Empty where the runtime has no trace to propagate, which is the case when
+  // tracing is disabled.
   map<string, string> trace_context = 5;
 
   oneof source {
@@ -118,6 +153,14 @@ message Dispatch {
 //
 // May arrive for an event that has already completed, which handlers must
 // ignore rather than treat as an error.
+//
+// A cancelled event should still be answered with a Result, which is what
+// returns the place it holds in the credit window. The runtime waits a short
+// grace period and then takes that place back itself, since a handler that has hung or
+// died would otherwise shrink the window for the life of the process. That is
+// not a claim that the handler stopped, only that the runtime will no longer keep
+// room for an answer it asked to be abandoned, a handler that answers
+// promptly never meets it.
 message Cancel {
   string id = 1;
 
@@ -242,6 +285,11 @@ message Result {
   // to stop dispatching to this stream until a later CreditGrant. SDKs should
   // default to 1 and must send this even when the handler panics, since a
   // missed grant drains the window and stalls the stream silently.
+  //
+  // When the runtime has already taken the place back, having cancelled the
+  // event and waited out the grace period, a grant here is ignored, since
+  // returning the same place twice would grow the window. Zero still withholds,
+  // and the runtime gives up the place it returned.
   uint32 credit_grant = 2;
 
   oneof outcome {
@@ -255,17 +303,38 @@ message Result {
   }
 }
 
+// Whether one message was processed.
+//
+// For a source that acknowledges, a schedule trigger among them, a failure
+// leaves the message on its source to be delivered again rather than
+// acknowledging it. So this is an answer about the message, not a report for
+// the log, and a handler that reports success for work it did not do will not
+// see that work again.
 message Ack {
   bool success = 1;
   string error_message = 2;
 }
 
+// Whether the records in a batch were processed.
+//
+// Naming a record is how a handler answers for each message separately. The
+// records named are left on their source to be delivered again and the rest are
+// acknowledged, so a handler that processed most of a batch does not have all
+// of it sent back.
+//
+// Failing with no records named answers for the whole batch, and none of it is
+// acknowledged. A non-empty list is taken as the answer even alongside success,
+// since acknowledging a record the handler named would lose it while leaving
+// one it processed only costs a redelivery.
 message BatchResult {
   bool success = 1;
   repeated RecordFailure failures = 2;
 }
 
 message RecordFailure {
+  // As it arrived on the ConsumerRecord. A name that matches no record in the
+  // batch leaves nothing behind, so a handler that rewrites or generates ids
+  // has to answer with the ones it was given.
   string message_id = 1;
   string error_message = 2;
 }
@@ -325,6 +394,18 @@ message WsOutbound {
   // loss event so an informed client can tell who was being replied to. Only
   // meaningful alongside inform_clients_on_loss.
   string caller = 6;
+  // Whether the WsSendAck for this message waits for the client to acknowledge
+  // it, rather than reporting the write to the socket.
+  //
+  // The message has to ask the client for an acknowledgement in the payload it
+  // carries, which the runtime does not compose. Setting this for one that
+  // asks nothing leaves the send waiting for an answer that is never coming,
+  // until the runtime declares the message lost.
+  //
+  // Waited for wherever the connection is, so a send means the same thing in a
+  // single node deployment as in a cluster. Sending it again while attempts
+  // remain, and declaring it lost when they run out, is the runtime's to do.
+  bool wait_for_ack = 7;
 }
 
 // Reports what happened to each message in a WsSend.
@@ -355,6 +436,10 @@ message RuntimeConfig {
   bool tracing_enabled = 1;
   bool metrics_enabled = 2;
   repeated HandlerConfig handlers = 3;
+  // The protocol version this runtime serves, sent before the handler is asked
+  // for anything so that it can refuse for itself rather than waiting to be
+  // refused.
+  ProtocolVersion protocol_version = 4;
 }
 
 message HandlerConfig {

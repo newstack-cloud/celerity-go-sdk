@@ -28,6 +28,59 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ReadyAck_RefusedReason int32
+
+const (
+	ReadyAck_REFUSED_REASON_UNSPECIFIED ReadyAck_RefusedReason = 0
+	// The tag lists above say which.
+	ReadyAck_REFUSED_REASON_TAG_MISMATCH ReadyAck_RefusedReason = 1
+	// The handler declared no protocol version, or one whose major the runtime
+	// does not serve. The runtime's own version is in RuntimeConfig, which the
+	// handler already has by this point.
+	ReadyAck_REFUSED_REASON_PROTOCOL_VERSION ReadyAck_RefusedReason = 2
+)
+
+// Enum value maps for ReadyAck_RefusedReason.
+var (
+	ReadyAck_RefusedReason_name = map[int32]string{
+		0: "REFUSED_REASON_UNSPECIFIED",
+		1: "REFUSED_REASON_TAG_MISMATCH",
+		2: "REFUSED_REASON_PROTOCOL_VERSION",
+	}
+	ReadyAck_RefusedReason_value = map[string]int32{
+		"REFUSED_REASON_UNSPECIFIED":      0,
+		"REFUSED_REASON_TAG_MISMATCH":     1,
+		"REFUSED_REASON_PROTOCOL_VERSION": 2,
+	}
+)
+
+func (x ReadyAck_RefusedReason) Enum() *ReadyAck_RefusedReason {
+	p := new(ReadyAck_RefusedReason)
+	*p = x
+	return p
+}
+
+func (x ReadyAck_RefusedReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReadyAck_RefusedReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_celerity_runtime_v1_runtime_proto_enumTypes[0].Descriptor()
+}
+
+func (ReadyAck_RefusedReason) Type() protoreflect.EnumType {
+	return &file_celerity_runtime_v1_runtime_proto_enumTypes[0]
+}
+
+func (x ReadyAck_RefusedReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReadyAck_RefusedReason.Descriptor instead.
+func (ReadyAck_RefusedReason) EnumDescriptor() ([]byte, []int) {
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{6, 0}
+}
+
 type Cancel_Reason int32
 
 const (
@@ -68,11 +121,11 @@ func (x Cancel_Reason) String() string {
 }
 
 func (Cancel_Reason) Descriptor() protoreflect.EnumDescriptor {
-	return file_celerity_runtime_v1_runtime_proto_enumTypes[0].Descriptor()
+	return file_celerity_runtime_v1_runtime_proto_enumTypes[1].Descriptor()
 }
 
 func (Cancel_Reason) Type() protoreflect.EnumType {
-	return &file_celerity_runtime_v1_runtime_proto_enumTypes[0]
+	return &file_celerity_runtime_v1_runtime_proto_enumTypes[1]
 }
 
 func (x Cancel_Reason) Number() protoreflect.EnumNumber {
@@ -81,7 +134,7 @@ func (x Cancel_Reason) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Cancel_Reason.Descriptor instead.
 func (Cancel_Reason) EnumDescriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{8, 0}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{9, 0}
 }
 
 // Ordered values for one parameter or header name.
@@ -133,6 +186,63 @@ func (x *Values) GetValues() []string {
 	return nil
 }
 
+// The version of this protocol that one end of the stream speaks.
+//
+// Minor versions are additive, so a handler built against an earlier minor of
+// the same major serves unchanged against a later one. A different major is
+// not compatible in either direction.
+type ProtocolVersion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Major         uint32                 `protobuf:"varint,1,opt,name=major,proto3" json:"major,omitempty"`
+	Minor         uint32                 `protobuf:"varint,2,opt,name=minor,proto3" json:"minor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProtocolVersion) Reset() {
+	*x = ProtocolVersion{}
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtocolVersion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtocolVersion) ProtoMessage() {}
+
+func (x *ProtocolVersion) ProtoReflect() protoreflect.Message {
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtocolVersion.ProtoReflect.Descriptor instead.
+func (*ProtocolVersion) Descriptor() ([]byte, []int) {
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ProtocolVersion) GetMajor() uint32 {
+	if x != nil {
+		return x.Major
+	}
+	return 0
+}
+
+func (x *ProtocolVersion) GetMinor() uint32 {
+	if x != nil {
+		return x.Minor
+	}
+	return 0
+}
+
 type RuntimeMessage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Frame:
@@ -150,7 +260,7 @@ type RuntimeMessage struct {
 
 func (x *RuntimeMessage) Reset() {
 	*x = RuntimeMessage{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[1]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -162,7 +272,7 @@ func (x *RuntimeMessage) String() string {
 func (*RuntimeMessage) ProtoMessage() {}
 
 func (x *RuntimeMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[1]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -175,7 +285,7 @@ func (x *RuntimeMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeMessage.ProtoReflect.Descriptor instead.
 func (*RuntimeMessage) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{1}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *RuntimeMessage) GetFrame() isRuntimeMessage_Frame {
@@ -297,7 +407,7 @@ type HandlerMessage struct {
 
 func (x *HandlerMessage) Reset() {
 	*x = HandlerMessage{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[2]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -309,7 +419,7 @@ func (x *HandlerMessage) String() string {
 func (*HandlerMessage) ProtoMessage() {}
 
 func (x *HandlerMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[2]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -322,7 +432,7 @@ func (x *HandlerMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandlerMessage.ProtoReflect.Descriptor instead.
 func (*HandlerMessage) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{2}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *HandlerMessage) GetFrame() isHandlerMessage_Frame {
@@ -426,14 +536,18 @@ type Ready struct {
 	SdkVersion    string `protobuf:"bytes,3,opt,name=sdk_version,json=sdkVersion,proto3" json:"sdk_version,omitempty"`
 	// Optional per-tag concurrency caps, so one slow tag cannot consume the whole
 	// credit window and starve the others.
-	Limits        []*HandlerLimit `protobuf:"bytes,4,rep,name=limits,proto3" json:"limits,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Limits []*HandlerLimit `protobuf:"bytes,4,rep,name=limits,proto3" json:"limits,omitempty"`
+	// The protocol version this handler was built against. Required. A handler
+	// that declares none was built against a version this contract cannot
+	// determine, and is refused rather than assumed to speak the current one.
+	ProtocolVersion *ProtocolVersion `protobuf:"bytes,5,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Ready) Reset() {
 	*x = Ready{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[3]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -445,7 +559,7 @@ func (x *Ready) String() string {
 func (*Ready) ProtoMessage() {}
 
 func (x *Ready) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[3]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -458,7 +572,7 @@ func (x *Ready) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ready.ProtoReflect.Descriptor instead.
 func (*Ready) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{3}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Ready) GetHandlerTags() []string {
@@ -489,6 +603,13 @@ func (x *Ready) GetLimits() []*HandlerLimit {
 	return nil
 }
 
+func (x *Ready) GetProtocolVersion() *ProtocolVersion {
+	if x != nil {
+		return x.ProtocolVersion
+	}
+	return nil
+}
+
 type HandlerLimit struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	HandlerTag    string                 `protobuf:"bytes,1,opt,name=handler_tag,json=handlerTag,proto3" json:"handler_tag,omitempty"`
@@ -499,7 +620,7 @@ type HandlerLimit struct {
 
 func (x *HandlerLimit) Reset() {
 	*x = HandlerLimit{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[4]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -511,7 +632,7 @@ func (x *HandlerLimit) String() string {
 func (*HandlerLimit) ProtoMessage() {}
 
 func (x *HandlerLimit) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[4]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -524,7 +645,7 @@ func (x *HandlerLimit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandlerLimit.ProtoReflect.Descriptor instead.
 func (*HandlerLimit) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{4}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *HandlerLimit) GetHandlerTag() string {
@@ -551,13 +672,17 @@ type ReadyAck struct {
 	UnknownTags []string `protobuf:"bytes,2,rep,name=unknown_tags,json=unknownTags,proto3" json:"unknown_tags,omitempty"`
 	// Present in the blueprint but not registered by the handler.
 	UnhandledTags []string `protobuf:"bytes,3,rep,name=unhandled_tags,json=unhandledTags,proto3" json:"unhandled_tags,omitempty"`
+	// Unspecified where the handler was accepted, since the tag lists alone
+	// cannot tell a version refusal from an accepted handler with nothing to
+	// report.
+	RefusedReason ReadyAck_RefusedReason `protobuf:"varint,4,opt,name=refused_reason,json=refusedReason,proto3,enum=celerity.runtime.v1.ReadyAck_RefusedReason" json:"refused_reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReadyAck) Reset() {
 	*x = ReadyAck{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[5]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -569,7 +694,7 @@ func (x *ReadyAck) String() string {
 func (*ReadyAck) ProtoMessage() {}
 
 func (x *ReadyAck) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[5]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -582,7 +707,7 @@ func (x *ReadyAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadyAck.ProtoReflect.Descriptor instead.
 func (*ReadyAck) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{5}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ReadyAck) GetAccepted() bool {
@@ -604,6 +729,13 @@ func (x *ReadyAck) GetUnhandledTags() []string {
 		return x.UnhandledTags
 	}
 	return nil
+}
+
+func (x *ReadyAck) GetRefusedReason() ReadyAck_RefusedReason {
+	if x != nil {
+		return x.RefusedReason
+	}
+	return ReadyAck_REFUSED_REASON_UNSPECIFIED
 }
 
 // Returns credit to the runtime.
@@ -629,7 +761,7 @@ type CreditGrant struct {
 
 func (x *CreditGrant) Reset() {
 	*x = CreditGrant{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[6]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -641,7 +773,7 @@ func (x *CreditGrant) String() string {
 func (*CreditGrant) ProtoMessage() {}
 
 func (x *CreditGrant) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[6]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -654,7 +786,7 @@ func (x *CreditGrant) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreditGrant.ProtoReflect.Descriptor instead.
 func (*CreditGrant) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{6}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CreditGrant) GetAdditional() uint32 {
@@ -672,7 +804,13 @@ type Dispatch struct {
 	// When the runtime stops waiting for this event. The handler should treat it
 	// as its own deadline; the runtime enforces it independently.
 	DeadlineUnixMs int64 `protobuf:"varint,4,opt,name=deadline_unix_ms,json=deadlineUnixMs,proto3" json:"deadline_unix_ms,omitempty"`
-	// W3C traceparent and tracestate.
+	// The trace context of whatever produced the event, so a handler's spans
+	// continue the trace rather than starting one of their own. Carries the W3C
+	// trace context keys, `traceparent` and, where an upstream sent one,
+	// `tracestate`, alongside platform specific ids such as `xray_trace_id`.
+	//
+	// Empty where the runtime has no trace to propagate, which is the case when
+	// tracing is disabled.
 	TraceContext map[string]string `protobuf:"bytes,5,rep,name=trace_context,json=traceContext,proto3" json:"trace_context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Types that are valid to be assigned to Source:
 	//
@@ -688,7 +826,7 @@ type Dispatch struct {
 
 func (x *Dispatch) Reset() {
 	*x = Dispatch{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[7]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +838,7 @@ func (x *Dispatch) String() string {
 func (*Dispatch) ProtoMessage() {}
 
 func (x *Dispatch) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[7]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +851,7 @@ func (x *Dispatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Dispatch.ProtoReflect.Descriptor instead.
 func (*Dispatch) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{7}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Dispatch) GetId() string {
@@ -841,6 +979,14 @@ func (*Dispatch_Custom) isDispatch_Source() {}
 //
 // May arrive for an event that has already completed, which handlers must
 // ignore rather than treat as an error.
+//
+// A cancelled event should still be answered with a Result, which is what
+// returns the place it holds in the credit window. The runtime waits a short
+// grace period and then takes that place back itself, since a handler that has hung or
+// died would otherwise shrink the window for the life of the process. That is
+// not a claim that the handler stopped, only that the runtime will no longer keep
+// room for an answer it asked to be abandoned, a handler that answers
+// promptly never meets it.
 type Cancel struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -851,7 +997,7 @@ type Cancel struct {
 
 func (x *Cancel) Reset() {
 	*x = Cancel{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[8]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -863,7 +1009,7 @@ func (x *Cancel) String() string {
 func (*Cancel) ProtoMessage() {}
 
 func (x *Cancel) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[8]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -876,7 +1022,7 @@ func (x *Cancel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cancel.ProtoReflect.Descriptor instead.
 func (*Cancel) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{8}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Cancel) GetId() string {
@@ -903,7 +1049,7 @@ type Drain struct {
 
 func (x *Drain) Reset() {
 	*x = Drain{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[9]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -915,7 +1061,7 @@ func (x *Drain) String() string {
 func (*Drain) ProtoMessage() {}
 
 func (x *Drain) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[9]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -928,7 +1074,7 @@ func (x *Drain) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Drain.ProtoReflect.Descriptor instead.
 func (*Drain) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{9}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Drain) GetDeadlineUnixMs() int64 {
@@ -949,7 +1095,7 @@ type Draining struct {
 
 func (x *Draining) Reset() {
 	*x = Draining{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[10]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -961,7 +1107,7 @@ func (x *Draining) String() string {
 func (*Draining) ProtoMessage() {}
 
 func (x *Draining) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[10]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -974,7 +1120,7 @@ func (x *Draining) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Draining.ProtoReflect.Descriptor instead.
 func (*Draining) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{10}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Draining) GetDeadlineUnixMs() int64 {
@@ -1012,7 +1158,7 @@ type HttpRequest struct {
 
 func (x *HttpRequest) Reset() {
 	*x = HttpRequest{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[11]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1024,7 +1170,7 @@ func (x *HttpRequest) String() string {
 func (*HttpRequest) ProtoMessage() {}
 
 func (x *HttpRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[11]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1037,7 +1183,7 @@ func (x *HttpRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HttpRequest.ProtoReflect.Descriptor instead.
 func (*HttpRequest) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{11}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *HttpRequest) GetMethod() string {
@@ -1119,7 +1265,7 @@ type HttpResponse struct {
 
 func (x *HttpResponse) Reset() {
 	*x = HttpResponse{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[12]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1131,7 +1277,7 @@ func (x *HttpResponse) String() string {
 func (*HttpResponse) ProtoMessage() {}
 
 func (x *HttpResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[12]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1144,7 +1290,7 @@ func (x *HttpResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HttpResponse.ProtoReflect.Descriptor instead.
 func (*HttpResponse) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{12}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *HttpResponse) GetStatus() uint32 {
@@ -1193,7 +1339,7 @@ type WebSocketMessage struct {
 
 func (x *WebSocketMessage) Reset() {
 	*x = WebSocketMessage{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[13]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1205,7 +1351,7 @@ func (x *WebSocketMessage) String() string {
 func (*WebSocketMessage) ProtoMessage() {}
 
 func (x *WebSocketMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[13]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1218,7 +1364,7 @@ func (x *WebSocketMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebSocketMessage.ProtoReflect.Descriptor instead.
 func (*WebSocketMessage) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{13}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *WebSocketMessage) GetRoute() string {
@@ -1283,7 +1429,7 @@ type ConsumerBatch struct {
 
 func (x *ConsumerBatch) Reset() {
 	*x = ConsumerBatch{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[14]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1295,7 +1441,7 @@ func (x *ConsumerBatch) String() string {
 func (*ConsumerBatch) ProtoMessage() {}
 
 func (x *ConsumerBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[14]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1308,7 +1454,7 @@ func (x *ConsumerBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConsumerBatch.ProtoReflect.Descriptor instead.
 func (*ConsumerBatch) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{14}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ConsumerBatch) GetRecords() []*ConsumerRecord {
@@ -1353,7 +1499,7 @@ type ConsumerRecord struct {
 
 func (x *ConsumerRecord) Reset() {
 	*x = ConsumerRecord{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[15]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1365,7 +1511,7 @@ func (x *ConsumerRecord) String() string {
 func (*ConsumerRecord) ProtoMessage() {}
 
 func (x *ConsumerRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[15]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1378,7 +1524,7 @@ func (x *ConsumerRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConsumerRecord.ProtoReflect.Descriptor instead.
 func (*ConsumerRecord) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{15}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ConsumerRecord) GetMessageId() string {
@@ -1436,7 +1582,7 @@ type ScheduleTrigger struct {
 
 func (x *ScheduleTrigger) Reset() {
 	*x = ScheduleTrigger{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[16]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1448,7 +1594,7 @@ func (x *ScheduleTrigger) String() string {
 func (*ScheduleTrigger) ProtoMessage() {}
 
 func (x *ScheduleTrigger) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[16]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1461,7 +1607,7 @@ func (x *ScheduleTrigger) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScheduleTrigger.ProtoReflect.Descriptor instead.
 func (*ScheduleTrigger) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{16}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ScheduleTrigger) GetScheduleId() string {
@@ -1509,7 +1655,7 @@ type CustomInvoke struct {
 
 func (x *CustomInvoke) Reset() {
 	*x = CustomInvoke{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[17]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1521,7 +1667,7 @@ func (x *CustomInvoke) String() string {
 func (*CustomInvoke) ProtoMessage() {}
 
 func (x *CustomInvoke) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[17]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1534,7 +1680,7 @@ func (x *CustomInvoke) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CustomInvoke.ProtoReflect.Descriptor instead.
 func (*CustomInvoke) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{17}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CustomInvoke) GetHandlerName() string {
@@ -1558,6 +1704,11 @@ type Result struct {
 	// to stop dispatching to this stream until a later CreditGrant. SDKs should
 	// default to 1 and must send this even when the handler panics, since a
 	// missed grant drains the window and stalls the stream silently.
+	//
+	// When the runtime has already taken the place back, having cancelled the
+	// event and waited out the grace period, a grant here is ignored, since
+	// returning the same place twice would grow the window. Zero still withholds,
+	// and the runtime gives up the place it returned.
 	CreditGrant uint32 `protobuf:"varint,2,opt,name=credit_grant,json=creditGrant,proto3" json:"credit_grant,omitempty"`
 	// Types that are valid to be assigned to Outcome:
 	//
@@ -1574,7 +1725,7 @@ type Result struct {
 
 func (x *Result) Reset() {
 	*x = Result{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[18]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1586,7 +1737,7 @@ func (x *Result) String() string {
 func (*Result) ProtoMessage() {}
 
 func (x *Result) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[18]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1599,7 +1750,7 @@ func (x *Result) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Result.ProtoReflect.Descriptor instead.
 func (*Result) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{18}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Result) GetId() string {
@@ -1718,6 +1869,13 @@ func (*Result_Custom) isResult_Outcome() {}
 
 func (*Result_Error) isResult_Outcome() {}
 
+// Whether one message was processed.
+//
+// For a source that acknowledges, a schedule trigger among them, a failure
+// leaves the message on its source to be delivered again rather than
+// acknowledging it. So this is an answer about the message, not a report for
+// the log, and a handler that reports success for work it did not do will not
+// see that work again.
 type Ack struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
@@ -1728,7 +1886,7 @@ type Ack struct {
 
 func (x *Ack) Reset() {
 	*x = Ack{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[19]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1740,7 +1898,7 @@ func (x *Ack) String() string {
 func (*Ack) ProtoMessage() {}
 
 func (x *Ack) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[19]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1753,7 +1911,7 @@ func (x *Ack) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ack.ProtoReflect.Descriptor instead.
 func (*Ack) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{19}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Ack) GetSuccess() bool {
@@ -1770,6 +1928,17 @@ func (x *Ack) GetErrorMessage() string {
 	return ""
 }
 
+// Whether the records in a batch were processed.
+//
+// Naming a record is how a handler answers for each message separately. The
+// records named are left on their source to be delivered again and the rest are
+// acknowledged, so a handler that processed most of a batch does not have all
+// of it sent back.
+//
+// Failing with no records named answers for the whole batch, and none of it is
+// acknowledged. A non-empty list is taken as the answer even alongside success,
+// since acknowledging a record the handler named would lose it while leaving
+// one it processed only costs a redelivery.
 type BatchResult struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
@@ -1780,7 +1949,7 @@ type BatchResult struct {
 
 func (x *BatchResult) Reset() {
 	*x = BatchResult{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[20]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1792,7 +1961,7 @@ func (x *BatchResult) String() string {
 func (*BatchResult) ProtoMessage() {}
 
 func (x *BatchResult) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[20]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1805,7 +1974,7 @@ func (x *BatchResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchResult.ProtoReflect.Descriptor instead.
 func (*BatchResult) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{20}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *BatchResult) GetSuccess() bool {
@@ -1823,16 +1992,19 @@ func (x *BatchResult) GetFailures() []*RecordFailure {
 }
 
 type RecordFailure struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MessageId     string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As it arrived on the ConsumerRecord. A name that matches no record in the
+	// batch leaves nothing behind, so a handler that rewrites or generates ids
+	// has to answer with the ones it was given.
+	MessageId     string `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	ErrorMessage  string `protobuf:"bytes,2,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RecordFailure) Reset() {
 	*x = RecordFailure{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[21]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1844,7 +2016,7 @@ func (x *RecordFailure) String() string {
 func (*RecordFailure) ProtoMessage() {}
 
 func (x *RecordFailure) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[21]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1857,7 +2029,7 @@ func (x *RecordFailure) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordFailure.ProtoReflect.Descriptor instead.
 func (*RecordFailure) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{21}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RecordFailure) GetMessageId() string {
@@ -1888,7 +2060,7 @@ type CustomInvokeResult struct {
 
 func (x *CustomInvokeResult) Reset() {
 	*x = CustomInvokeResult{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[22]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1900,7 +2072,7 @@ func (x *CustomInvokeResult) String() string {
 func (*CustomInvokeResult) ProtoMessage() {}
 
 func (x *CustomInvokeResult) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[22]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1913,7 +2085,7 @@ func (x *CustomInvokeResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CustomInvokeResult.ProtoReflect.Descriptor instead.
 func (*CustomInvokeResult) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{22}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CustomInvokeResult) GetOutput() []byte {
@@ -1941,7 +2113,7 @@ type HandlerError struct {
 
 func (x *HandlerError) Reset() {
 	*x = HandlerError{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[23]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1953,7 +2125,7 @@ func (x *HandlerError) String() string {
 func (*HandlerError) ProtoMessage() {}
 
 func (x *HandlerError) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[23]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1966,7 +2138,7 @@ func (x *HandlerError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandlerError.ProtoReflect.Descriptor instead.
 func (*HandlerError) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{23}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *HandlerError) GetMessage() string {
@@ -2000,7 +2172,7 @@ type WsSend struct {
 
 func (x *WsSend) Reset() {
 	*x = WsSend{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[24]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2012,7 +2184,7 @@ func (x *WsSend) String() string {
 func (*WsSend) ProtoMessage() {}
 
 func (x *WsSend) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[24]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2025,7 +2197,7 @@ func (x *WsSend) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WsSend.ProtoReflect.Descriptor instead.
 func (*WsSend) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{24}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *WsSend) GetCorrelationId() string {
@@ -2075,14 +2247,26 @@ type WsOutbound struct {
 	// The connection that caused this message to be sent, carried through to the
 	// loss event so an informed client can tell who was being replied to. Only
 	// meaningful alongside inform_clients_on_loss.
-	Caller        string `protobuf:"bytes,6,opt,name=caller,proto3" json:"caller,omitempty"`
+	Caller string `protobuf:"bytes,6,opt,name=caller,proto3" json:"caller,omitempty"`
+	// Whether the WsSendAck for this message waits for the client to acknowledge
+	// it, rather than reporting the write to the socket.
+	//
+	// The message has to ask the client for an acknowledgement in the payload it
+	// carries, which the runtime does not compose. Setting this for one that
+	// asks nothing leaves the send waiting for an answer that is never coming,
+	// until the runtime declares the message lost.
+	//
+	// Waited for wherever the connection is, so a send means the same thing in a
+	// single node deployment as in a cluster. Sending it again while attempts
+	// remain, and declaring it lost when they run out, is the runtime's to do.
+	WaitForAck    bool `protobuf:"varint,7,opt,name=wait_for_ack,json=waitForAck,proto3" json:"wait_for_ack,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WsOutbound) Reset() {
 	*x = WsOutbound{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[25]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2094,7 +2278,7 @@ func (x *WsOutbound) String() string {
 func (*WsOutbound) ProtoMessage() {}
 
 func (x *WsOutbound) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[25]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2107,7 +2291,7 @@ func (x *WsOutbound) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WsOutbound.ProtoReflect.Descriptor instead.
 func (*WsOutbound) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{25}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *WsOutbound) GetConnectionId() string {
@@ -2152,6 +2336,13 @@ func (x *WsOutbound) GetCaller() string {
 	return ""
 }
 
+func (x *WsOutbound) GetWaitForAck() bool {
+	if x != nil {
+		return x.WaitForAck
+	}
+	return false
+}
+
 // Reports what happened to each message in a WsSend.
 //
 // Failures are per message rather than per batch because a client has no way to
@@ -2170,7 +2361,7 @@ type WsSendAck struct {
 
 func (x *WsSendAck) Reset() {
 	*x = WsSendAck{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[26]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2182,7 +2373,7 @@ func (x *WsSendAck) String() string {
 func (*WsSendAck) ProtoMessage() {}
 
 func (x *WsSendAck) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[26]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2195,7 +2386,7 @@ func (x *WsSendAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WsSendAck.ProtoReflect.Descriptor instead.
 func (*WsSendAck) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{26}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *WsSendAck) GetCorrelationId() string {
@@ -2233,7 +2424,7 @@ type WsSendFailure struct {
 
 func (x *WsSendFailure) Reset() {
 	*x = WsSendFailure{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[27]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2245,7 +2436,7 @@ func (x *WsSendFailure) String() string {
 func (*WsSendFailure) ProtoMessage() {}
 
 func (x *WsSendFailure) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[27]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2258,7 +2449,7 @@ func (x *WsSendFailure) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WsSendFailure.ProtoReflect.Descriptor instead.
 func (*WsSendFailure) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{27}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *WsSendFailure) GetIndex() uint32 {
@@ -2287,13 +2478,17 @@ type RuntimeConfig struct {
 	TracingEnabled bool                   `protobuf:"varint,1,opt,name=tracing_enabled,json=tracingEnabled,proto3" json:"tracing_enabled,omitempty"`
 	MetricsEnabled bool                   `protobuf:"varint,2,opt,name=metrics_enabled,json=metricsEnabled,proto3" json:"metrics_enabled,omitempty"`
 	Handlers       []*HandlerConfig       `protobuf:"bytes,3,rep,name=handlers,proto3" json:"handlers,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// The protocol version this runtime serves, sent before the handler is asked
+	// for anything so that it can refuse for itself rather than waiting to be
+	// refused.
+	ProtocolVersion *ProtocolVersion `protobuf:"bytes,4,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RuntimeConfig) Reset() {
 	*x = RuntimeConfig{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[28]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2305,7 +2500,7 @@ func (x *RuntimeConfig) String() string {
 func (*RuntimeConfig) ProtoMessage() {}
 
 func (x *RuntimeConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[28]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2318,7 +2513,7 @@ func (x *RuntimeConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeConfig.ProtoReflect.Descriptor instead.
 func (*RuntimeConfig) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{28}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *RuntimeConfig) GetTracingEnabled() bool {
@@ -2342,6 +2537,13 @@ func (x *RuntimeConfig) GetHandlers() []*HandlerConfig {
 	return nil
 }
 
+func (x *RuntimeConfig) GetProtocolVersion() *ProtocolVersion {
+	if x != nil {
+		return x.ProtocolVersion
+	}
+	return nil
+}
+
 type HandlerConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The blueprint resource this handler is declared as, which is what its
@@ -2361,7 +2563,7 @@ type HandlerConfig struct {
 
 func (x *HandlerConfig) Reset() {
 	*x = HandlerConfig{}
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[29]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2373,7 +2575,7 @@ func (x *HandlerConfig) String() string {
 func (*HandlerConfig) ProtoMessage() {}
 
 func (x *HandlerConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[29]
+	mi := &file_celerity_runtime_v1_runtime_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2386,7 +2588,7 @@ func (x *HandlerConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandlerConfig.ProtoReflect.Descriptor instead.
 func (*HandlerConfig) Descriptor() ([]byte, []int) {
-	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{29}
+	return file_celerity_runtime_v1_runtime_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *HandlerConfig) GetHandlerName() string {
@@ -2430,7 +2632,10 @@ const file_celerity_runtime_v1_runtime_proto_rawDesc = "" +
 	"\n" +
 	"!celerity/runtime/v1/runtime.proto\x12\x13celerity.runtime.v1\" \n" +
 	"\x06Values\x12\x16\n" +
-	"\x06values\x18\x01 \x03(\tR\x06values\"\xf6\x02\n" +
+	"\x06values\x18\x01 \x03(\tR\x06values\"=\n" +
+	"\x0fProtocolVersion\x12\x14\n" +
+	"\x05major\x18\x01 \x01(\rR\x05major\x12\x14\n" +
+	"\x05minor\x18\x02 \x01(\rR\x05minor\"\xf6\x02\n" +
 	"\x0eRuntimeMessage\x12<\n" +
 	"\x06config\x18\x01 \x01(\v2\".celerity.runtime.v1.RuntimeConfigH\x00R\x06config\x12<\n" +
 	"\tready_ack\x18\x02 \x01(\v2\x1d.celerity.runtime.v1.ReadyAckH\x00R\breadyAck\x12;\n" +
@@ -2445,21 +2650,27 @@ const file_celerity_runtime_v1_runtime_proto_rawDesc = "" +
 	"\x06credit\x18\x03 \x01(\v2 .celerity.runtime.v1.CreditGrantH\x00R\x06credit\x126\n" +
 	"\aws_send\x18\x04 \x01(\v2\x1b.celerity.runtime.v1.WsSendH\x00R\x06wsSend\x12;\n" +
 	"\bdraining\x18\x05 \x01(\v2\x1d.celerity.runtime.v1.DrainingH\x00R\bdrainingB\a\n" +
-	"\x05frame\"\xad\x01\n" +
+	"\x05frame\"\xfe\x01\n" +
 	"\x05Ready\x12!\n" +
 	"\fhandler_tags\x18\x01 \x03(\tR\vhandlerTags\x12%\n" +
 	"\x0einitial_credit\x18\x02 \x01(\rR\rinitialCredit\x12\x1f\n" +
 	"\vsdk_version\x18\x03 \x01(\tR\n" +
 	"sdkVersion\x129\n" +
-	"\x06limits\x18\x04 \x03(\v2!.celerity.runtime.v1.HandlerLimitR\x06limits\"V\n" +
+	"\x06limits\x18\x04 \x03(\v2!.celerity.runtime.v1.HandlerLimitR\x06limits\x12O\n" +
+	"\x10protocol_version\x18\x05 \x01(\v2$.celerity.runtime.v1.ProtocolVersionR\x0fprotocolVersion\"V\n" +
 	"\fHandlerLimit\x12\x1f\n" +
 	"\vhandler_tag\x18\x01 \x01(\tR\n" +
 	"handlerTag\x12%\n" +
-	"\x0emax_concurrent\x18\x02 \x01(\rR\rmaxConcurrent\"p\n" +
+	"\x0emax_concurrent\x18\x02 \x01(\rR\rmaxConcurrent\"\xbb\x02\n" +
 	"\bReadyAck\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\bR\baccepted\x12!\n" +
 	"\funknown_tags\x18\x02 \x03(\tR\vunknownTags\x12%\n" +
-	"\x0eunhandled_tags\x18\x03 \x03(\tR\runhandledTags\"-\n" +
+	"\x0eunhandled_tags\x18\x03 \x03(\tR\runhandledTags\x12R\n" +
+	"\x0erefused_reason\x18\x04 \x01(\x0e2+.celerity.runtime.v1.ReadyAck.RefusedReasonR\rrefusedReason\"u\n" +
+	"\rRefusedReason\x12\x1e\n" +
+	"\x1aREFUSED_REASON_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bREFUSED_REASON_TAG_MISMATCH\x10\x01\x12#\n" +
+	"\x1fREFUSED_REASON_PROTOCOL_VERSION\x10\x02\"-\n" +
 	"\vCreditGrant\x12\x1e\n" +
 	"\n" +
 	"additional\x18\x01 \x01(\rR\n" +
@@ -2589,7 +2800,7 @@ const file_celerity_runtime_v1_runtime_proto_rawDesc = "" +
 	"\x05stack\x18\x03 \x01(\tR\x05stack\"l\n" +
 	"\x06WsSend\x12%\n" +
 	"\x0ecorrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12;\n" +
-	"\bmessages\x18\x02 \x03(\v2\x1f.celerity.runtime.v1.WsOutboundR\bmessages\"\xd4\x01\n" +
+	"\bmessages\x18\x02 \x03(\v2\x1f.celerity.runtime.v1.WsOutboundR\bmessages\"\xf6\x01\n" +
 	"\n" +
 	"WsOutbound\x12#\n" +
 	"\rconnection_id\x18\x01 \x01(\tR\fconnectionId\x12\x18\n" +
@@ -2598,7 +2809,9 @@ const file_celerity_runtime_v1_runtime_proto_rawDesc = "" +
 	"\x16inform_clients_on_loss\x18\x04 \x03(\tR\x13informClientsOnLoss\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x05 \x01(\tR\tmessageId\x12\x16\n" +
-	"\x06caller\x18\x06 \x01(\tR\x06caller\"\x8c\x01\n" +
+	"\x06caller\x18\x06 \x01(\tR\x06caller\x12 \n" +
+	"\fwait_for_ack\x18\a \x01(\bR\n" +
+	"waitForAck\"\x8c\x01\n" +
 	"\tWsSendAck\x12%\n" +
 	"\x0ecorrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12\x18\n" +
 	"\asuccess\x18\x02 \x01(\bR\asuccess\x12>\n" +
@@ -2606,11 +2819,12 @@ const file_celerity_runtime_v1_runtime_proto_rawDesc = "" +
 	"\rWsSendFailure\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\rR\x05index\x12#\n" +
 	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\x12#\n" +
-	"\rerror_message\x18\x03 \x01(\tR\ferrorMessage\"\xa1\x01\n" +
+	"\rerror_message\x18\x03 \x01(\tR\ferrorMessage\"\xf2\x01\n" +
 	"\rRuntimeConfig\x12'\n" +
 	"\x0ftracing_enabled\x18\x01 \x01(\bR\x0etracingEnabled\x12'\n" +
 	"\x0fmetrics_enabled\x18\x02 \x01(\bR\x0emetricsEnabled\x12>\n" +
-	"\bhandlers\x18\x03 \x03(\v2\".celerity.runtime.v1.HandlerConfigR\bhandlers\"\xc2\x01\n" +
+	"\bhandlers\x18\x03 \x03(\v2\".celerity.runtime.v1.HandlerConfigR\bhandlers\x12O\n" +
+	"\x10protocol_version\x18\x04 \x01(\v2$.celerity.runtime.v1.ProtocolVersionR\x0fprotocolVersion\"\xc2\x01\n" +
 	"\rHandlerConfig\x12!\n" +
 	"\fhandler_name\x18\x01 \x01(\tR\vhandlerName\x12\x1f\n" +
 	"\vhandler_tag\x18\x02 \x01(\tR\n" +
@@ -2634,92 +2848,97 @@ func file_celerity_runtime_v1_runtime_proto_rawDescGZIP() []byte {
 	return file_celerity_runtime_v1_runtime_proto_rawDescData
 }
 
-var file_celerity_runtime_v1_runtime_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_celerity_runtime_v1_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_celerity_runtime_v1_runtime_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_celerity_runtime_v1_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_celerity_runtime_v1_runtime_proto_goTypes = []any{
-	(Cancel_Reason)(0),         // 0: celerity.runtime.v1.Cancel.Reason
-	(*Values)(nil),             // 1: celerity.runtime.v1.Values
-	(*RuntimeMessage)(nil),     // 2: celerity.runtime.v1.RuntimeMessage
-	(*HandlerMessage)(nil),     // 3: celerity.runtime.v1.HandlerMessage
-	(*Ready)(nil),              // 4: celerity.runtime.v1.Ready
-	(*HandlerLimit)(nil),       // 5: celerity.runtime.v1.HandlerLimit
-	(*ReadyAck)(nil),           // 6: celerity.runtime.v1.ReadyAck
-	(*CreditGrant)(nil),        // 7: celerity.runtime.v1.CreditGrant
-	(*Dispatch)(nil),           // 8: celerity.runtime.v1.Dispatch
-	(*Cancel)(nil),             // 9: celerity.runtime.v1.Cancel
-	(*Drain)(nil),              // 10: celerity.runtime.v1.Drain
-	(*Draining)(nil),           // 11: celerity.runtime.v1.Draining
-	(*HttpRequest)(nil),        // 12: celerity.runtime.v1.HttpRequest
-	(*HttpResponse)(nil),       // 13: celerity.runtime.v1.HttpResponse
-	(*WebSocketMessage)(nil),   // 14: celerity.runtime.v1.WebSocketMessage
-	(*ConsumerBatch)(nil),      // 15: celerity.runtime.v1.ConsumerBatch
-	(*ConsumerRecord)(nil),     // 16: celerity.runtime.v1.ConsumerRecord
-	(*ScheduleTrigger)(nil),    // 17: celerity.runtime.v1.ScheduleTrigger
-	(*CustomInvoke)(nil),       // 18: celerity.runtime.v1.CustomInvoke
-	(*Result)(nil),             // 19: celerity.runtime.v1.Result
-	(*Ack)(nil),                // 20: celerity.runtime.v1.Ack
-	(*BatchResult)(nil),        // 21: celerity.runtime.v1.BatchResult
-	(*RecordFailure)(nil),      // 22: celerity.runtime.v1.RecordFailure
-	(*CustomInvokeResult)(nil), // 23: celerity.runtime.v1.CustomInvokeResult
-	(*HandlerError)(nil),       // 24: celerity.runtime.v1.HandlerError
-	(*WsSend)(nil),             // 25: celerity.runtime.v1.WsSend
-	(*WsOutbound)(nil),         // 26: celerity.runtime.v1.WsOutbound
-	(*WsSendAck)(nil),          // 27: celerity.runtime.v1.WsSendAck
-	(*WsSendFailure)(nil),      // 28: celerity.runtime.v1.WsSendFailure
-	(*RuntimeConfig)(nil),      // 29: celerity.runtime.v1.RuntimeConfig
-	(*HandlerConfig)(nil),      // 30: celerity.runtime.v1.HandlerConfig
-	nil,                        // 31: celerity.runtime.v1.Dispatch.TraceContextEntry
-	nil,                        // 32: celerity.runtime.v1.HttpRequest.PathParamsEntry
-	nil,                        // 33: celerity.runtime.v1.HttpRequest.QueryParamsEntry
-	nil,                        // 34: celerity.runtime.v1.HttpRequest.HeadersEntry
-	nil,                        // 35: celerity.runtime.v1.HttpResponse.HeadersEntry
+	(ReadyAck_RefusedReason)(0), // 0: celerity.runtime.v1.ReadyAck.RefusedReason
+	(Cancel_Reason)(0),          // 1: celerity.runtime.v1.Cancel.Reason
+	(*Values)(nil),              // 2: celerity.runtime.v1.Values
+	(*ProtocolVersion)(nil),     // 3: celerity.runtime.v1.ProtocolVersion
+	(*RuntimeMessage)(nil),      // 4: celerity.runtime.v1.RuntimeMessage
+	(*HandlerMessage)(nil),      // 5: celerity.runtime.v1.HandlerMessage
+	(*Ready)(nil),               // 6: celerity.runtime.v1.Ready
+	(*HandlerLimit)(nil),        // 7: celerity.runtime.v1.HandlerLimit
+	(*ReadyAck)(nil),            // 8: celerity.runtime.v1.ReadyAck
+	(*CreditGrant)(nil),         // 9: celerity.runtime.v1.CreditGrant
+	(*Dispatch)(nil),            // 10: celerity.runtime.v1.Dispatch
+	(*Cancel)(nil),              // 11: celerity.runtime.v1.Cancel
+	(*Drain)(nil),               // 12: celerity.runtime.v1.Drain
+	(*Draining)(nil),            // 13: celerity.runtime.v1.Draining
+	(*HttpRequest)(nil),         // 14: celerity.runtime.v1.HttpRequest
+	(*HttpResponse)(nil),        // 15: celerity.runtime.v1.HttpResponse
+	(*WebSocketMessage)(nil),    // 16: celerity.runtime.v1.WebSocketMessage
+	(*ConsumerBatch)(nil),       // 17: celerity.runtime.v1.ConsumerBatch
+	(*ConsumerRecord)(nil),      // 18: celerity.runtime.v1.ConsumerRecord
+	(*ScheduleTrigger)(nil),     // 19: celerity.runtime.v1.ScheduleTrigger
+	(*CustomInvoke)(nil),        // 20: celerity.runtime.v1.CustomInvoke
+	(*Result)(nil),              // 21: celerity.runtime.v1.Result
+	(*Ack)(nil),                 // 22: celerity.runtime.v1.Ack
+	(*BatchResult)(nil),         // 23: celerity.runtime.v1.BatchResult
+	(*RecordFailure)(nil),       // 24: celerity.runtime.v1.RecordFailure
+	(*CustomInvokeResult)(nil),  // 25: celerity.runtime.v1.CustomInvokeResult
+	(*HandlerError)(nil),        // 26: celerity.runtime.v1.HandlerError
+	(*WsSend)(nil),              // 27: celerity.runtime.v1.WsSend
+	(*WsOutbound)(nil),          // 28: celerity.runtime.v1.WsOutbound
+	(*WsSendAck)(nil),           // 29: celerity.runtime.v1.WsSendAck
+	(*WsSendFailure)(nil),       // 30: celerity.runtime.v1.WsSendFailure
+	(*RuntimeConfig)(nil),       // 31: celerity.runtime.v1.RuntimeConfig
+	(*HandlerConfig)(nil),       // 32: celerity.runtime.v1.HandlerConfig
+	nil,                         // 33: celerity.runtime.v1.Dispatch.TraceContextEntry
+	nil,                         // 34: celerity.runtime.v1.HttpRequest.PathParamsEntry
+	nil,                         // 35: celerity.runtime.v1.HttpRequest.QueryParamsEntry
+	nil,                         // 36: celerity.runtime.v1.HttpRequest.HeadersEntry
+	nil,                         // 37: celerity.runtime.v1.HttpResponse.HeadersEntry
 }
 var file_celerity_runtime_v1_runtime_proto_depIdxs = []int32{
-	29, // 0: celerity.runtime.v1.RuntimeMessage.config:type_name -> celerity.runtime.v1.RuntimeConfig
-	6,  // 1: celerity.runtime.v1.RuntimeMessage.ready_ack:type_name -> celerity.runtime.v1.ReadyAck
-	8,  // 2: celerity.runtime.v1.RuntimeMessage.dispatch:type_name -> celerity.runtime.v1.Dispatch
-	9,  // 3: celerity.runtime.v1.RuntimeMessage.cancel:type_name -> celerity.runtime.v1.Cancel
-	10, // 4: celerity.runtime.v1.RuntimeMessage.drain:type_name -> celerity.runtime.v1.Drain
-	27, // 5: celerity.runtime.v1.RuntimeMessage.ws_ack:type_name -> celerity.runtime.v1.WsSendAck
-	4,  // 6: celerity.runtime.v1.HandlerMessage.ready:type_name -> celerity.runtime.v1.Ready
-	19, // 7: celerity.runtime.v1.HandlerMessage.result:type_name -> celerity.runtime.v1.Result
-	7,  // 8: celerity.runtime.v1.HandlerMessage.credit:type_name -> celerity.runtime.v1.CreditGrant
-	25, // 9: celerity.runtime.v1.HandlerMessage.ws_send:type_name -> celerity.runtime.v1.WsSend
-	11, // 10: celerity.runtime.v1.HandlerMessage.draining:type_name -> celerity.runtime.v1.Draining
-	5,  // 11: celerity.runtime.v1.Ready.limits:type_name -> celerity.runtime.v1.HandlerLimit
-	31, // 12: celerity.runtime.v1.Dispatch.trace_context:type_name -> celerity.runtime.v1.Dispatch.TraceContextEntry
-	12, // 13: celerity.runtime.v1.Dispatch.http:type_name -> celerity.runtime.v1.HttpRequest
-	14, // 14: celerity.runtime.v1.Dispatch.websocket:type_name -> celerity.runtime.v1.WebSocketMessage
-	15, // 15: celerity.runtime.v1.Dispatch.consumer:type_name -> celerity.runtime.v1.ConsumerBatch
-	17, // 16: celerity.runtime.v1.Dispatch.schedule:type_name -> celerity.runtime.v1.ScheduleTrigger
-	18, // 17: celerity.runtime.v1.Dispatch.custom:type_name -> celerity.runtime.v1.CustomInvoke
-	0,  // 18: celerity.runtime.v1.Cancel.reason:type_name -> celerity.runtime.v1.Cancel.Reason
-	32, // 19: celerity.runtime.v1.HttpRequest.path_params:type_name -> celerity.runtime.v1.HttpRequest.PathParamsEntry
-	33, // 20: celerity.runtime.v1.HttpRequest.query_params:type_name -> celerity.runtime.v1.HttpRequest.QueryParamsEntry
-	34, // 21: celerity.runtime.v1.HttpRequest.headers:type_name -> celerity.runtime.v1.HttpRequest.HeadersEntry
-	35, // 22: celerity.runtime.v1.HttpResponse.headers:type_name -> celerity.runtime.v1.HttpResponse.HeadersEntry
-	16, // 23: celerity.runtime.v1.ConsumerBatch.records:type_name -> celerity.runtime.v1.ConsumerRecord
-	13, // 24: celerity.runtime.v1.Result.http:type_name -> celerity.runtime.v1.HttpResponse
-	20, // 25: celerity.runtime.v1.Result.websocket:type_name -> celerity.runtime.v1.Ack
-	21, // 26: celerity.runtime.v1.Result.consumer:type_name -> celerity.runtime.v1.BatchResult
-	20, // 27: celerity.runtime.v1.Result.schedule:type_name -> celerity.runtime.v1.Ack
-	23, // 28: celerity.runtime.v1.Result.custom:type_name -> celerity.runtime.v1.CustomInvokeResult
-	24, // 29: celerity.runtime.v1.Result.error:type_name -> celerity.runtime.v1.HandlerError
-	22, // 30: celerity.runtime.v1.BatchResult.failures:type_name -> celerity.runtime.v1.RecordFailure
-	26, // 31: celerity.runtime.v1.WsSend.messages:type_name -> celerity.runtime.v1.WsOutbound
-	28, // 32: celerity.runtime.v1.WsSendAck.failures:type_name -> celerity.runtime.v1.WsSendFailure
-	30, // 33: celerity.runtime.v1.RuntimeConfig.handlers:type_name -> celerity.runtime.v1.HandlerConfig
-	1,  // 34: celerity.runtime.v1.HttpRequest.PathParamsEntry.value:type_name -> celerity.runtime.v1.Values
-	1,  // 35: celerity.runtime.v1.HttpRequest.QueryParamsEntry.value:type_name -> celerity.runtime.v1.Values
-	1,  // 36: celerity.runtime.v1.HttpRequest.HeadersEntry.value:type_name -> celerity.runtime.v1.Values
-	1,  // 37: celerity.runtime.v1.HttpResponse.HeadersEntry.value:type_name -> celerity.runtime.v1.Values
-	3,  // 38: celerity.runtime.v1.HandlerRuntimeService.EventStream:input_type -> celerity.runtime.v1.HandlerMessage
-	2,  // 39: celerity.runtime.v1.HandlerRuntimeService.EventStream:output_type -> celerity.runtime.v1.RuntimeMessage
-	39, // [39:40] is the sub-list for method output_type
-	38, // [38:39] is the sub-list for method input_type
-	38, // [38:38] is the sub-list for extension type_name
-	38, // [38:38] is the sub-list for extension extendee
-	0,  // [0:38] is the sub-list for field type_name
+	31, // 0: celerity.runtime.v1.RuntimeMessage.config:type_name -> celerity.runtime.v1.RuntimeConfig
+	8,  // 1: celerity.runtime.v1.RuntimeMessage.ready_ack:type_name -> celerity.runtime.v1.ReadyAck
+	10, // 2: celerity.runtime.v1.RuntimeMessage.dispatch:type_name -> celerity.runtime.v1.Dispatch
+	11, // 3: celerity.runtime.v1.RuntimeMessage.cancel:type_name -> celerity.runtime.v1.Cancel
+	12, // 4: celerity.runtime.v1.RuntimeMessage.drain:type_name -> celerity.runtime.v1.Drain
+	29, // 5: celerity.runtime.v1.RuntimeMessage.ws_ack:type_name -> celerity.runtime.v1.WsSendAck
+	6,  // 6: celerity.runtime.v1.HandlerMessage.ready:type_name -> celerity.runtime.v1.Ready
+	21, // 7: celerity.runtime.v1.HandlerMessage.result:type_name -> celerity.runtime.v1.Result
+	9,  // 8: celerity.runtime.v1.HandlerMessage.credit:type_name -> celerity.runtime.v1.CreditGrant
+	27, // 9: celerity.runtime.v1.HandlerMessage.ws_send:type_name -> celerity.runtime.v1.WsSend
+	13, // 10: celerity.runtime.v1.HandlerMessage.draining:type_name -> celerity.runtime.v1.Draining
+	7,  // 11: celerity.runtime.v1.Ready.limits:type_name -> celerity.runtime.v1.HandlerLimit
+	3,  // 12: celerity.runtime.v1.Ready.protocol_version:type_name -> celerity.runtime.v1.ProtocolVersion
+	0,  // 13: celerity.runtime.v1.ReadyAck.refused_reason:type_name -> celerity.runtime.v1.ReadyAck.RefusedReason
+	33, // 14: celerity.runtime.v1.Dispatch.trace_context:type_name -> celerity.runtime.v1.Dispatch.TraceContextEntry
+	14, // 15: celerity.runtime.v1.Dispatch.http:type_name -> celerity.runtime.v1.HttpRequest
+	16, // 16: celerity.runtime.v1.Dispatch.websocket:type_name -> celerity.runtime.v1.WebSocketMessage
+	17, // 17: celerity.runtime.v1.Dispatch.consumer:type_name -> celerity.runtime.v1.ConsumerBatch
+	19, // 18: celerity.runtime.v1.Dispatch.schedule:type_name -> celerity.runtime.v1.ScheduleTrigger
+	20, // 19: celerity.runtime.v1.Dispatch.custom:type_name -> celerity.runtime.v1.CustomInvoke
+	1,  // 20: celerity.runtime.v1.Cancel.reason:type_name -> celerity.runtime.v1.Cancel.Reason
+	34, // 21: celerity.runtime.v1.HttpRequest.path_params:type_name -> celerity.runtime.v1.HttpRequest.PathParamsEntry
+	35, // 22: celerity.runtime.v1.HttpRequest.query_params:type_name -> celerity.runtime.v1.HttpRequest.QueryParamsEntry
+	36, // 23: celerity.runtime.v1.HttpRequest.headers:type_name -> celerity.runtime.v1.HttpRequest.HeadersEntry
+	37, // 24: celerity.runtime.v1.HttpResponse.headers:type_name -> celerity.runtime.v1.HttpResponse.HeadersEntry
+	18, // 25: celerity.runtime.v1.ConsumerBatch.records:type_name -> celerity.runtime.v1.ConsumerRecord
+	15, // 26: celerity.runtime.v1.Result.http:type_name -> celerity.runtime.v1.HttpResponse
+	22, // 27: celerity.runtime.v1.Result.websocket:type_name -> celerity.runtime.v1.Ack
+	23, // 28: celerity.runtime.v1.Result.consumer:type_name -> celerity.runtime.v1.BatchResult
+	22, // 29: celerity.runtime.v1.Result.schedule:type_name -> celerity.runtime.v1.Ack
+	25, // 30: celerity.runtime.v1.Result.custom:type_name -> celerity.runtime.v1.CustomInvokeResult
+	26, // 31: celerity.runtime.v1.Result.error:type_name -> celerity.runtime.v1.HandlerError
+	24, // 32: celerity.runtime.v1.BatchResult.failures:type_name -> celerity.runtime.v1.RecordFailure
+	28, // 33: celerity.runtime.v1.WsSend.messages:type_name -> celerity.runtime.v1.WsOutbound
+	30, // 34: celerity.runtime.v1.WsSendAck.failures:type_name -> celerity.runtime.v1.WsSendFailure
+	32, // 35: celerity.runtime.v1.RuntimeConfig.handlers:type_name -> celerity.runtime.v1.HandlerConfig
+	3,  // 36: celerity.runtime.v1.RuntimeConfig.protocol_version:type_name -> celerity.runtime.v1.ProtocolVersion
+	2,  // 37: celerity.runtime.v1.HttpRequest.PathParamsEntry.value:type_name -> celerity.runtime.v1.Values
+	2,  // 38: celerity.runtime.v1.HttpRequest.QueryParamsEntry.value:type_name -> celerity.runtime.v1.Values
+	2,  // 39: celerity.runtime.v1.HttpRequest.HeadersEntry.value:type_name -> celerity.runtime.v1.Values
+	2,  // 40: celerity.runtime.v1.HttpResponse.HeadersEntry.value:type_name -> celerity.runtime.v1.Values
+	5,  // 41: celerity.runtime.v1.HandlerRuntimeService.EventStream:input_type -> celerity.runtime.v1.HandlerMessage
+	4,  // 42: celerity.runtime.v1.HandlerRuntimeService.EventStream:output_type -> celerity.runtime.v1.RuntimeMessage
+	42, // [42:43] is the sub-list for method output_type
+	41, // [41:42] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_celerity_runtime_v1_runtime_proto_init() }
@@ -2727,7 +2946,7 @@ func file_celerity_runtime_v1_runtime_proto_init() {
 	if File_celerity_runtime_v1_runtime_proto != nil {
 		return
 	}
-	file_celerity_runtime_v1_runtime_proto_msgTypes[1].OneofWrappers = []any{
+	file_celerity_runtime_v1_runtime_proto_msgTypes[2].OneofWrappers = []any{
 		(*RuntimeMessage_Config)(nil),
 		(*RuntimeMessage_ReadyAck)(nil),
 		(*RuntimeMessage_Dispatch)(nil),
@@ -2735,21 +2954,21 @@ func file_celerity_runtime_v1_runtime_proto_init() {
 		(*RuntimeMessage_Drain)(nil),
 		(*RuntimeMessage_WsAck)(nil),
 	}
-	file_celerity_runtime_v1_runtime_proto_msgTypes[2].OneofWrappers = []any{
+	file_celerity_runtime_v1_runtime_proto_msgTypes[3].OneofWrappers = []any{
 		(*HandlerMessage_Ready)(nil),
 		(*HandlerMessage_Result)(nil),
 		(*HandlerMessage_Credit)(nil),
 		(*HandlerMessage_WsSend)(nil),
 		(*HandlerMessage_Draining)(nil),
 	}
-	file_celerity_runtime_v1_runtime_proto_msgTypes[7].OneofWrappers = []any{
+	file_celerity_runtime_v1_runtime_proto_msgTypes[8].OneofWrappers = []any{
 		(*Dispatch_Http)(nil),
 		(*Dispatch_Websocket)(nil),
 		(*Dispatch_Consumer)(nil),
 		(*Dispatch_Schedule)(nil),
 		(*Dispatch_Custom)(nil),
 	}
-	file_celerity_runtime_v1_runtime_proto_msgTypes[18].OneofWrappers = []any{
+	file_celerity_runtime_v1_runtime_proto_msgTypes[19].OneofWrappers = []any{
 		(*Result_Http)(nil),
 		(*Result_Websocket)(nil),
 		(*Result_Consumer)(nil),
@@ -2762,8 +2981,8 @@ func file_celerity_runtime_v1_runtime_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_celerity_runtime_v1_runtime_proto_rawDesc), len(file_celerity_runtime_v1_runtime_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   35,
+			NumEnums:      2,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
