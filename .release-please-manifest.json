@@ -1,5 +1,5 @@
 {
-  ".": "0.1.0",
+  ".": "0.2.0",
   "serverless/aws": "0.1.0",
   "resources/aws": "0.1.0",
   "cmd/celerity-go": "0.1.0"
