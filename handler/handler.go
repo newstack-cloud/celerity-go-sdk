@@ -129,7 +129,12 @@ type ConsumerRecord struct {
 // BatchResult reports which records in a batch failed.
 //
 // Failures are per record so that a batch where one record fails redrives only
-// that record.
+// that record. The runtime leaves the named records on their source and
+// acknowledges the rest, so this decides what is delivered again rather than
+// only reporting what happened.
+//
+// Naming nothing while returning an error answers for the whole batch, and
+// none of it is acknowledged.
 type BatchResult struct {
 	Failures []RecordFailure
 }
@@ -138,6 +143,10 @@ type BatchResult struct {
 func (r *BatchResult) Failed() bool { return len(r.Failures) > 0 }
 
 // Fail records a failure for one message, to be retried or redriven.
+//
+// The id must be the [ConsumerRecord.MessageID] the record arrived with. A
+// name matching no record in the batch settles nothing, so the runtime refuses
+// the whole answer rather than acknowledging a batch it cannot apply.
 func (r *BatchResult) Fail(messageID string, err error) {
 	msg := ""
 	if err != nil {
@@ -148,6 +157,7 @@ func (r *BatchResult) Fail(messageID string, err error) {
 
 // RecordFailure names one record that could not be processed.
 type RecordFailure struct {
+	// MessageID is the id the record arrived with, see [BatchResult.Fail].
 	MessageID string
 	Error     string
 }

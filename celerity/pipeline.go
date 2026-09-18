@@ -38,6 +38,7 @@ func (a *App) toServerlessHandler(reg *Registration) *serverless.Handler {
 func (a *App) contextLayer(reg *Registration) layer.Layer {
 	return func(next layer.Next) layer.Next {
 		return func(ctx context.Context, ev *handler.Event) (*handler.Result, error) {
+			ctx = WithEvent(ctx, ev)
 			if a.options.logger != nil {
 				ctx = telemetry.WithLogger(ctx, a.options.logger.With(
 					"handler", reg.Name,
@@ -121,11 +122,7 @@ func refused(ev *handler.Event, decision guard.Decision) *handler.Result {
 
 	switch ev.Kind {
 	case handler.KindHTTP:
-		return &handler.Result{ID: ev.ID, HTTP: &handler.Response{
-			Status:  401,
-			Headers: handler.Params{"content-type": {"application/json"}},
-			Body:    []byte(fmt.Sprintf(`{"message":%q}`, reason)),
-		}}
+		return &handler.Result{ID: ev.ID, HTTP: handler.JSONMessage(401, reason)}
 	case handler.KindWebSocket:
 		return &handler.Result{ID: ev.ID, WebSocket: &handler.Ack{Success: false, Error: reason}}
 	default:

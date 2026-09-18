@@ -22,13 +22,54 @@ func withWebSocketSender(ctx context.Context, c *Client) context.Context {
 // Send delivers messages and blocks until the runtime acknowledges them.
 //
 // A partial failure returns a [handler.SendError] naming exactly which messages
-// failed, by index, because a client cannot deduplicate: a message reaches it
-// as a bare frame with no id, so resending one that already arrived is visible
-// to the application.
+// failed, by index, so a caller can retry exactly those. Re-sending a whole
+// batch would redeliver the messages that did arrive, and whether the client
+// can tell those apart depends on the message ID.
 func (s *sender) Send(ctx context.Context, messages ...handler.OutboundMessage) error {
 	if len(messages) == 0 {
 		return nil
 	}
+
+	outbound := make([]Outbound, 0, len(messages))
+	for _, m := range messages {
+		outbound = append(outbound, Outbound{OutboundMessage: m})
+	}
+	return s.send(ctx, outbound)
+}
+
+// SendBinary frames every message and sends it, implementing
+// [handler.BinarySender].
+//
+// Framing happens for the whole call before any of it goes out. A message whose
+// parts cannot be represented is a mistake in the calling code, and sending the
+// ones before it would leave the client needing to make sense of a partial batch.
+func (s *sender) SendBinary(ctx context.Context, messages ...handler.OutboundBinaryMessage) error {
+	if len(messages) == 0 {
+		return nil
+	}
+
+	outbound := make([]Outbound, 0, len(messages))
+	for i, m := range messages {
+		framed, err := handler.FrameBinaryMessage(m.Route, m.FrameMessageID, m.RequireAck, m.Message)
+		if err != nil {
+			return fmt.Errorf("framing binary message %d for connection %s: %w", i, m.ConnectionID, err)
+		}
+		outbound = append(outbound, Outbound{
+			OutboundMessage: handler.OutboundMessage{
+				ConnectionID:        m.ConnectionID,
+				Message:             framed,
+				InformClientsOnLoss: m.InformClientsOnLoss,
+				MessageID:           m.MessageID,
+				Caller:              m.Caller,
+				WaitForAck:          m.WaitForAck,
+			},
+			IsBinary: true,
+		})
+	}
+	return s.send(ctx, outbound)
+}
+
+func (s *sender) send(ctx context.Context, messages []Outbound) error {
 
 	correlationID := strconv.FormatUint(correlationCounter.Add(1), 10)
 	acks := make(chan *WsSendAck, 1)

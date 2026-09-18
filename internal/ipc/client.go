@@ -17,13 +17,48 @@ type Config struct {
 	// Tags are the handler tags this process serves, declared in the handshake
 	// and checked against the blueprint by the runtime.
 	Tags []string
+	// Reconcile is given what the blueprint declares, before this process
+	// declares itself, and returns the tags to declare.
+	//
+	// It is how a handler whose tag is not knowable from code alone settles it:
+	// a WebSocket route keyed by something the API states, or a handler that
+	// stated only its name and takes its routing from the blueprint. Returning
+	// an error fails the handshake, which is the right outcome for a handler
+	// that could never be dispatched to. Optional.
+	Reconcile func(blueprint []HandlerConfig) ([]string, error)
 	// Resolve returns the pipeline for a tag.
 	Resolve func(tag string) (layer.Next, bool)
 	// Concurrency is the worker pool size, and the initial credit.
 	Concurrency int
-	// Limits cap individual tags within the credit window.
-	Limits     map[string]int
+	// Limits caps individual tags within the credit window, so one slow handler
+	// cannot consume the whole of it.
+	//
+	// A function rather than a map because it is read after Reconcile which can
+	// change a tag to the one the blueprint declares, and a cap keyed by the
+	// tag built beforehand would name a handler the runtime does not know.
+	// Optional.
+	Limits     func() map[string]int
 	SDKVersion string
+}
+
+// ProtocolVersionError reports a handshake refused because the contract this
+// SDK speaks is not one the runtime serves.
+//
+// Nothing about the application causes it, so nothing about the application
+// fixes it, a rebuild is required against an SDK whose contract the runtime serves.
+type ProtocolVersionError struct {
+	// Declared is what this SDK was built against.
+	Declared ProtocolVersion
+	// Served is what the runtime sent with its configuration, which is the
+	// zero value if it sent none.
+	Served ProtocolVersion
+}
+
+func (e *ProtocolVersionError) Error() string {
+	return fmt.Sprintf(
+		"this SDK speaks IPC protocol %s and the runtime serves %s, rebuild against an SDK the runtime serves",
+		e.Declared, e.Served,
+	)
 }
 
 // TagMismatchError reports a handshake refused because the handlers registered
@@ -85,6 +120,14 @@ func (c *Client) Serve(ctx context.Context) error {
 		return err
 	}
 
+	if c.config.Reconcile != nil {
+		tags, err := c.config.Reconcile(config.Handlers)
+		if err != nil {
+			return err
+		}
+		c.config.Tags = tags
+	}
+
 	if err := c.declareReady(config); err != nil {
 		return err
 	}
@@ -110,11 +153,17 @@ func (c *Client) declareReady(config *RuntimeConfig) error {
 	tags := append([]string(nil), c.config.Tags...)
 	sort.Strings(tags)
 
+	var limits map[string]int
+	if c.config.Limits != nil {
+		limits = c.config.Limits()
+	}
+
 	ready := &Ready{
 		HandlerTags:   tags,
 		InitialCredit: uint32(c.config.Concurrency),
 		SDKVersion:    c.config.SDKVersion,
-		Limits:        limitsFrom(c.config.Limits),
+		Limits:        limitsFrom(limits),
+		Protocol:      ProtocolVersion{Major: ProtocolMajor, Minor: ProtocolMinor},
 	}
 	if err := c.transport.Send(&ToRuntime{Ready: ready}); err != nil {
 		return fmt.Errorf("declaring handlers: %w", err)
@@ -128,6 +177,12 @@ func (c *Client) declareReady(config *RuntimeConfig) error {
 		return errors.New("runtime sent a frame other than an acknowledgement of readiness")
 	}
 	if !frame.ReadyAck.Accepted {
+		if frame.ReadyAck.Reason == RefusedProtocolVersion {
+			return &ProtocolVersionError{
+				Declared: ready.Protocol,
+				Served:   config.Protocol,
+			}
+		}
 		return &TagMismatchError{
 			Unknown:   frame.ReadyAck.UnknownTags,
 			Unhandled: frame.ReadyAck.UnhandledTags,

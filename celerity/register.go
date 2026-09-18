@@ -17,12 +17,15 @@ type Guard = guard.Guard
 type RegisterOption func(*registerOptions)
 
 type registerOptions struct {
-	name          string
-	publishedName string
-	layers        []layer.Layer
-	guards        []string
-	uses          []string
-	public        bool
+	name           string
+	publishedName  string
+	layers         []layer.Layer
+	guards         []string
+	uses           []string
+	public         bool
+	maxConcurrent  int
+	skipValidation bool
+	validator      Validator
 }
 
 // Named sets the blueprint resource name for a handler.
@@ -48,6 +51,38 @@ func With(layers ...layer.Layer) RegisterOption {
 // handler.
 func ProtectedBy(guards ...string) RegisterOption {
 	return func(o *registerOptions) { o.guards = append(o.guards, guards...) }
+}
+
+// MaxConcurrent caps how many events of this handler may be in flight at once,
+// so a slow or expensive handler cannot consume the whole concurrency window
+// and starve the others.
+//
+// Unlike the size of that window, which depends on the host and is set by
+// whoever deploys, this says which handler is expensive relative to the rest,
+// and that is known here rather than at deployment. It is a cap, not a
+// reservation, it never guarantees the handler that much.
+func MaxConcurrent(n int) RegisterOption {
+	return func(o *registerOptions) { o.maxConcurrent = n }
+}
+
+// SkipValidation turns validation off for one handler, including the input's
+// own Validate where it has one.
+//
+// For a handler that takes what it is given, such as one accepting a payload it
+// forwards without reading, or one whose checks depend on state the type cannot
+// see.
+func SkipValidation() RegisterOption {
+	return func(o *registerOptions) { o.skipValidation = true }
+}
+
+// ValidateWith uses a different validator for one handler, in place of the
+// application's.
+//
+// For a handler whose rules are not the rest of the application's, for example,
+// a public endpoint that is stricter about what it accepts, or one migrating to new
+// rules while the others keep the old.
+func ValidateWith(v Validator) RegisterOption {
+	return func(o *registerOptions) { o.validator = v }
 }
 
 // Public marks a handler as reachable without authorisation, overriding an
@@ -125,28 +160,44 @@ func HTTP(
 		Guards:        o.guards,
 		Uses:          o.uses,
 		Public:        o.public,
+		MaxConcurrent: o.maxConcurrent,
 		FuncPath:      funcNameOf(h),
 	}, o.layers)
 }
 
-// OnMessage registers a handler for WebSocket messages arriving on routeKey.
+// WebSocket routes with a meaning of their own. A message carrying no route,
+// or one nothing else serves, is dispatched to [RouteDefault].
+const (
+	RouteConnect    = "$connect"
+	RouteDisconnect = "$disconnect"
+	RouteDefault    = "$default"
+)
+
+// OnMessage registers a handler for WebSocket messages arriving on a route.
+//
+// The route is the value carried by the API's route key, so a message of
+// {"action": "sendMessage", ...} reaches the handler registered for
+// "sendMessage" when the API's route key is "action". Which field that is
+// belongs to the API rather than to this handler: see [WithWebSocketRouteKey].
+//
+// Register [RouteDefault] to catch messages no other route matches.
 func OnMessage[In, Out any](
 	app *App,
-	routeKey string,
+	route string,
 	h HandlerFunc[In, Out],
 	opts ...RegisterOption,
 ) {
-	registerWebSocket(app, routeKey, "$default", h, opts)
+	registerWebSocket(app, route, h, opts)
 }
 
 // OnConnect registers a handler run when a WebSocket client connects.
 func OnConnect[In, Out any](app *App, h HandlerFunc[In, Out], opts ...RegisterOption) {
-	registerWebSocket(app, "$connect", "$connect", h, opts)
+	registerWebSocket(app, RouteConnect, h, opts)
 }
 
 // OnDisconnect registers a handler run when a WebSocket client disconnects.
 func OnDisconnect[In, Out any](app *App, h HandlerFunc[In, Out], opts ...RegisterOption) {
-	registerWebSocket(app, "$disconnect", "$disconnect", h, opts)
+	registerWebSocket(app, RouteDisconnect, h, opts)
 }
 
 // Consume registers a handler for batches from a queue, stream or event source.
@@ -175,6 +226,7 @@ func Consume(
 		Guards:        o.guards,
 		Uses:          o.uses,
 		Public:        o.public,
+		MaxConcurrent: o.maxConcurrent,
 		FuncPath:      funcNameOf(h),
 	}, o.layers)
 }
@@ -202,6 +254,7 @@ func Schedule(
 		Guards:        o.guards,
 		Uses:          o.uses,
 		Public:        o.public,
+		MaxConcurrent: o.maxConcurrent,
 		FuncPath:      funcNameOf(h),
 	}, o.layers)
 }
@@ -224,13 +277,71 @@ func Invoke[In, Out any](
 		Kind:          handler.KindCustom,
 		SourceFile:    file,
 		SourceLine:    line,
-		Handler:       wrapCustom(h),
+		Handler:       wrapCustom(app.validationFor(o), h),
 		Guards:        o.guards,
 		Uses:          o.uses,
 		Public:        o.public,
+		MaxConcurrent: o.maxConcurrent,
 		FuncPath:      funcNameOf(h),
 	}, o.layers)
 }
+
+// Handler registers a handler that takes its wiring from the blueprint.
+//
+// Code states the name and nothing else and the route, method or source is the
+// decided in the blueprint, and the tag is settled against what the blueprint
+// declares before this process declares itself. The blueprint's
+// annotations carry the routing information in this case.
+//
+//	celerity.Handler(app, "getOrderHandler", getOrder)
+//
+// Everything the blueprint has no concept of is still stated here, so taking
+// wiring from the blueprint costs nothing else:
+//
+//	celerity.Handler(app, "forwardPayload", forward,
+//	    celerity.SkipValidation(),
+//	    celerity.With(ratelimit.Layer(100)),
+//	    celerity.ProtectedBy("jwt"),
+//	    celerity.MaxConcurrent(2),
+//	)
+//
+// A name the blueprint does not declare fails the handshake naming it, rather
+// than leaving a handler that can never be reached.
+//
+// Consumer and schedule handlers take a batch and a trigger rather than a
+// decoded input, so they are registered with [Consume] and [Schedule] even when
+// their source comes from the blueprint.
+func Handler[In, Out any](
+	app *App,
+	name string,
+	h HandlerFunc[In, Out],
+	opts ...RegisterOption,
+) {
+	o := applyOptions(opts)
+	file, line := callerLocation(1)
+
+	app.register(&Registration{
+		// Provisional, and unique per name so two of them cannot collide before
+		// the blueprint is read. Reconciliation replaces it.
+		Tag:           pendingTagPrefix + name,
+		Name:          name,
+		PublishedName: o.publishedName,
+		FromBlueprint: true,
+		SourceFile:    file,
+		SourceLine:    line,
+		FuncPath:      funcNameOf(h),
+		Handler:       wrapTypedAny(app.validationFor(o), h),
+		Guards:        o.guards,
+		Uses:          o.uses,
+		Public:        o.public,
+		MaxConcurrent: o.maxConcurrent,
+	}, o.layers)
+}
+
+// Handlers awaiting a tag from the blueprint are keyed by this until
+// reconciliation, which is a tag no runtime declares, so one left unresolved
+// cannot be mistaken for something dispatchable.
+const pendingTagPrefix = "blueprint::"
 
 // AddGuard registers a named guard that handlers refer to through [ProtectedBy].
 func AddGuard(app *App, name string, g Guard) {
@@ -261,22 +372,24 @@ func registerHTTP[In, Out any](
 		Route:         normalised,
 		SourceFile:    file,
 		SourceLine:    line,
-		Handler:       wrapTypedHTTP(h),
+		Handler:       wrapTypedHTTP(app.validationFor(o), h),
 		Guards:        o.guards,
 		Uses:          o.uses,
 		Public:        o.public,
+		MaxConcurrent: o.maxConcurrent,
 		FuncPath:      funcNameOf(h),
 	}, o.layers)
 }
 
 func registerWebSocket[In, Out any](
 	app *App,
-	routeKey, route string,
+	route string,
 	h HandlerFunc[In, Out],
 	opts []RegisterOption,
 ) {
 	o := applyOptions(opts)
 	file, line := callerLocation(2)
+	routeKey := app.options.webSocketRouteKey
 
 	app.register(&Registration{
 		Tag:           WebSocketTag(routeKey, route),
@@ -287,10 +400,11 @@ func registerWebSocket[In, Out any](
 		Route:         route,
 		SourceFile:    file,
 		SourceLine:    line,
-		Handler:       wrapTypedWebSocket(h),
+		Handler:       wrapTypedWebSocket(app.validationFor(o), h),
 		Guards:        o.guards,
 		Uses:          o.uses,
 		Public:        o.public,
+		MaxConcurrent: o.maxConcurrent,
 		FuncPath:      funcNameOf(h),
 	}, o.layers)
 }

@@ -16,7 +16,20 @@ func HTTPTag(method, route string) string {
 	return strings.ToUpper(method) + "::" + route
 }
 
+// DefaultWebSocketRouteKey is the field a WebSocket message carries its route
+// in when the API does not state one.
+//
+// It matches the runtime's DEFAULT_WEBSOCKET_API_ROUTE_KEY, which is what a
+// blueprint omitting spec.websocketConfig.routeKey resolves to, so a handler
+// registered against a default API declares the tag the runtime builds.
+const DefaultWebSocketRouteKey = "event"
+
 // WebSocketTag returns the tag identifying a WebSocket message handler.
+//
+// The route key names the field carrying the route, and the route is its value,
+// so {"action": "sendMessage"} on an API keyed by "action" is
+// action::sendMessage. Both halves come from the API rather than the handler,
+// which is why registration takes only the route.
 func WebSocketTag(routeKey, route string) string {
 	return routeKey + "::" + route
 }

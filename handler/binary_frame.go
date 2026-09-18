@@ -22,13 +22,37 @@ var (
 	// ErrMessageIDTooLong is returned when a message id exceeds the single byte
 	// the format gives its length.
 	ErrMessageIDTooLong = errors.New("celerity: a binary message id must be at most 255 bytes")
+	// ErrRouteReserved is returned when a route begins with a byte the protocol
+	// keeps for its own messages.
+	ErrRouteReserved = errors.New(
+		"celerity: a binary message route must not begin with a reserved byte",
+	)
+	// ErrAckWithoutID is returned when a message asks to be acknowledged without
+	// an id for the acknowledgement to name.
+	ErrAckWithoutID = errors.New(
+		"celerity: a binary message asking to be acknowledged needs an id",
+	)
 )
 
-// FrameBinaryMessage encodes a message in the Celerity Binary Message Format,
-// ready to be sent through a [WebSocketSender] with IsBinary set.
+// reservedRouteBytes are the first bytes a client reads as one of the
+// protocol's own messages: ping, pong, a lost message, an acknowledgement and
+// the capabilities signal.
+var reservedRouteBytes = [...]bool{0x1: true, 0x2: true, 0x3: true, 0x4: true, 0x5: true}
+
+// FrameBinaryMessage encodes a message in the Celerity Binary Message Format.
 //
-// A message carrying no id sets both requireAck and messageIdLength to zero, so
-// requireAck is ignored when messageID is empty.
+// [BinarySender.SendBinary] calls this, and is how an application sends binary;
+// this is exported for a caller composing a frame for a transport of its own.
+//
+// Unlike the Node and Python SDKs, which hand framing to the runtime through
+// their native bindings, this is the Go implementation of the format: the Go
+// SDK reaches the runtime over IPC and has no in-process binding to call. It is
+// therefore a second implementation of a published wire format, and is held to
+// the same bytes by the shared conformance vectors in testdata.
+//
+// Every field that cannot be represented is refused rather than truncated into
+// a frame that would be read as something other than what was meant, which is
+// what the runtime does with the same message.
 func FrameBinaryMessage(route, messageID string, requireAck bool, message []byte) ([]byte, error) {
 	if len(route) == 0 {
 		return nil, ErrRouteRequired
@@ -36,8 +60,21 @@ func FrameBinaryMessage(route, messageID string, requireAck bool, message []byte
 	if len(route) > 255 {
 		return nil, ErrRouteTooLong
 	}
+	// A route is read as reserved when its first byte is one of the reserved
+	// values, so a custom route starting with one would come back as a ping or
+	// an acknowledgement rather than as itself.
+	if first := route[0]; int(first) < len(reservedRouteBytes) && reservedRouteBytes[first] {
+		return nil, ErrRouteReserved
+	}
 	if len(messageID) > 255 {
 		return nil, ErrMessageIDTooLong
+	}
+	// Asking to be acknowledged without an id is refused rather than quietly
+	// dropped, since the sender would otherwise wait for an answer that has
+	// nothing to name and can never come.
+
+	if requireAck && messageID == "" {
+		return nil, ErrAckWithoutID
 	}
 
 	framed := make([]byte, 0, 3+len(route)+len(messageID)+len(message))
@@ -45,7 +82,7 @@ func FrameBinaryMessage(route, messageID string, requireAck bool, message []byte
 	framed = append(framed, route...)
 
 	ack := byte(0x0)
-	if requireAck && messageID != "" {
+	if requireAck {
 		ack = 0x1
 	}
 	framed = append(framed, ack, byte(len(messageID)))

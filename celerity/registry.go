@@ -46,6 +46,13 @@ type Registration struct {
 	Uses []string
 	// Public marks a handler reachable without authorisation.
 	Public bool
+	// MaxConcurrent caps how many events of this handler may be in flight,
+	// zero meaning uncapped.
+	MaxConcurrent int
+	// FromBlueprint marks a handler that stated only its name, leaving its
+	// route, method or source to the blueprint. Its tag is settled by
+	// [App.ReconcileTags] rather than at registration.
+	FromBlueprint bool
 }
 
 // Registry holds every handler an application has registered, keyed by tag.
@@ -83,6 +90,30 @@ func (r *Registry) Add(reg *Registration) error {
 	r.byTag[reg.Tag] = reg
 	r.order = append(r.order, reg.Tag)
 	return nil
+}
+
+// Retag moves a registration to a different tag, keeping registration order.
+//
+// Used when the blueprint declares a WebSocket route key other than the one a
+// tag was built with, which is not known until the runtime sends its
+// configuration.
+func (r *Registry) Retag(from, to string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	reg, ok := r.byTag[from]
+	if !ok || from == to {
+		return
+	}
+
+	delete(r.byTag, from)
+	r.byTag[to] = reg
+	for i, tag := range r.order {
+		if tag == from {
+			r.order[i] = to
+			break
+		}
+	}
 }
 
 // Get returns the handler registered under tag.

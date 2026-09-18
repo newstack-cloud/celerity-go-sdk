@@ -35,38 +35,17 @@ type App struct {
 }
 
 type options struct {
-	concurrency      int
-	handlerLimits    map[string]int
-	layers           []layer.Layer
-	guards           map[string]Guard
-	adapter          serverless.Adapter
-	logger           telemetry.Logger
-	resourceProvider resources.Provider
+	layers            []layer.Layer
+	guards            map[string]Guard
+	adapter           serverless.Adapter
+	logger            telemetry.Logger
+	resourceProvider  resources.Provider
+	webSocketRouteKey string
+	validator         Validator
 }
 
 // Option configures an application.
 type Option func(*options)
-
-// WithConcurrency sets how many events may be in flight at once.
-//
-// It is the worker pool size, and it becomes the initial credit the IPC
-// handshake declares. Throughput saturates at the pool size, and every unit
-// beyond it adds latency for almost no throughput, so raising it past the pool
-// is not a tuning knob worth reaching for.
-func WithConcurrency(n int) Option {
-	return func(o *options) { o.concurrency = n }
-}
-
-// WithHandlerLimit caps how much of the concurrency window one handler tag may
-// occupy, so a slow handler cannot starve the others.
-func WithHandlerLimit(tag string, max int) Option {
-	return func(o *options) {
-		if o.handlerLimits == nil {
-			o.handlerLimits = make(map[string]int)
-		}
-		o.handlerLimits[tag] = max
-	}
-}
 
 // WithLayers adds application-scoped layers, which wrap every handler.
 func WithLayers(layers ...layer.Layer) Option {
@@ -82,6 +61,19 @@ func WithAdapter(a serverless.Adapter) Option {
 	return func(o *options) { o.adapter = a }
 }
 
+// WithWebSocketRouteKey sets the field in a WebSocket message that carries the
+// route, which is a property of the API rather than of any handler:
+//
+//	{"action": "sendMessage", "data": {...}}
+//
+// Under the Celerity runtime this is a fallback. The blueprint states it, and
+// the runtime sends every declared handler tag before the handshake, so the
+// tags are reconciled against what the blueprint actually says. It matters
+// where there is no runtime to ask, which is every serverless deployment.
+func WithWebSocketRouteKey(key string) Option {
+	return func(o *options) { o.webSocketRouteKey = key }
+}
+
 // WithLogger replaces the logger handlers receive through
 // [telemetry.LoggerFrom].
 func WithLogger(l telemetry.Logger) Option {
@@ -91,8 +83,10 @@ func WithLogger(l telemetry.Logger) Option {
 // New creates an application.
 func New(opts ...Option) *App {
 	o := options{
-		concurrency: runtime.NumCPU() * 4,
-		guards:      make(map[string]Guard),
+		guards: make(map[string]Guard),
+		// What a blueprint that states no route key resolves to, so the tags
+		// built here match the runtime's for a default API.
+		webSocketRouteKey: DefaultWebSocketRouteKey,
 	}
 	for _, opt := range opts {
 		opt(&o)
@@ -104,12 +98,6 @@ func New(opts ...Option) *App {
 //
 // Serverless adapters and the manifest emitter read the application through it.
 func (a *App) Registry() *Registry { return a.registry }
-
-// Concurrency returns the configured worker pool size.
-func (a *App) Concurrency() int { return a.options.concurrency }
-
-// HandlerLimits returns the per-tag concurrency caps.
-func (a *App) HandlerLimits() map[string]int { return a.options.handlerLimits }
 
 // Adapter returns an adapter given explicitly, or nil when the linked one is
 // to be used.

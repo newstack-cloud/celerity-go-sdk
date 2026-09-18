@@ -9,6 +9,7 @@
 package ipc
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/newstack-cloud/celerity-go-sdk/handler"
@@ -58,6 +59,30 @@ type Ready struct {
 	// Limits cap individual tags so one slow tag cannot consume the whole
 	// credit window and starve the others.
 	Limits []HandlerLimit
+	// Protocol is the contract version this SDK was built against.
+	// This is required, the runtime refuses a handler that declares none,
+	// rather than assuming it speaks the current one.
+	Protocol ProtocolVersion
+}
+
+// ProtocolVersion is the version of the contract one end of the stream speaks.
+//
+// Minor versions are additive, so a handler built against an earlier minor of
+// the same major serves unchanged against a later one. A different major is
+// not compatible in either direction and is refused at the handshake.
+type ProtocolVersion struct {
+	Major uint32
+	Minor uint32
+}
+
+// The contract version this SDK was built against, declared in the handshake.
+const (
+	ProtocolMajor uint32 = 1
+	ProtocolMinor uint32 = 0
+)
+
+func (v ProtocolVersion) String() string {
+	return fmt.Sprintf("%d.%d", v.Major, v.Minor)
 }
 
 // HandlerLimit caps how much of the credit window one tag may occupy.
@@ -73,7 +98,21 @@ type ReadyAck struct {
 	UnknownTags []string
 	// UnhandledTags are in the blueprint but not registered by the handler.
 	UnhandledTags []string
+	// Reason says which check refused this handler. The tag lists alone cannot
+	// tell a version refusal from an accepted handler with nothing to report.
+	Reason RefusedReason
 }
+
+// RefusedReason says which check refused a handler at the handshake.
+type RefusedReason int
+
+const (
+	RefusedUnspecified RefusedReason = iota
+	RefusedTagMismatch
+	// RefusedProtocolVersion means the handler declared no contract version,
+	// or one whose major the runtime does not serve.
+	RefusedProtocolVersion
+)
 
 // CreditGrant returns credit to the runtime.
 //
@@ -123,7 +162,17 @@ type Draining struct {
 // WsSend asks the runtime to deliver messages to WebSocket clients.
 type WsSend struct {
 	CorrelationID string
-	Messages      []handler.OutboundMessage
+	Messages      []Outbound
+}
+
+// Outbound is a message on its way to the runtime.
+//
+// It carries the frame kind, which the public API deliberately does not as an
+// application asks for binary through handler.BinarySender, and by the time a
+// message reaches here the bytes are already framed and the kind is settled.
+type Outbound struct {
+	handler.OutboundMessage
+	IsBinary bool
 }
 
 // WsSendAck reports what happened to each message in a [WsSend].
@@ -140,6 +189,9 @@ type RuntimeConfig struct {
 	TracingEnabled bool
 	MetricsEnabled bool
 	Handlers       []HandlerConfig
+	// Protocol is the contract version the runtime serves, sent before this
+	// handler is asked for anything.
+	Protocol ProtocolVersion
 }
 
 // HandlerConfig describes one handler the blueprint declares.

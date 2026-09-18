@@ -9,13 +9,12 @@ import (
 // client.
 type OutboundMessage struct {
 	ConnectionID string
-	// Message is sent to the socket exactly as given. When IsBinary is set it
-	// must be in the Celerity Binary Message Format, which
-	// [FrameBinaryMessage] produces: a client reads every non-reserved binary
-	// frame as a framed message, so raw bytes are read as a route length and a
-	// route rather than as a payload.
-	Message  []byte
-	IsBinary bool
+	// Message is sent to the socket exactly as given, as a text frame.
+	//
+	// Bytes go through [BinarySender], not here, binary frames are a capability
+	// of the transport rather than of the SDK, and a managed WebSocket gateway
+	// carries text frames only.
+	Message []byte
 	// InformClientsOnLoss names connections to notify if this message cannot be
 	// delivered.
 	InformClientsOnLoss []string
@@ -30,6 +29,18 @@ type OutboundMessage struct {
 	// Caller is the connection that caused this message to be sent, carried
 	// through to the loss event. Only meaningful alongside InformClientsOnLoss.
 	Caller string
+	// WaitForAck waits for the client to acknowledge this message, rather than
+	// returning once it has been written to the socket, and reports it as
+	// failed where the client never does.
+	//
+	// Message has to ask the client for an acknowledgement in what it carries,
+	// which the runtime does not compose. Setting this for one that asks
+	// nothing waits until the runtime declares the message lost.
+	//
+	// Under the Celerity runtime only. A serverless adapter pushes through the
+	// provider's own API, which reports whether it accepted the message and
+	// nothing about what the client made of it.
+	WaitForAck bool
 }
 
 // WebSocketSender pushes messages to connected clients.
@@ -41,11 +52,81 @@ type OutboundMessage struct {
 type WebSocketSender interface {
 	// Send delivers every message and blocks until the outcome is known.
 	//
+	// For a message that set WaitForAck, the outcome is what its client made of
+	// it, so Send is waiting on a round trip rather than on a write.
+	//
 	// A partial failure returns a [SendError] naming exactly which messages
-	// failed, because a client cannot deduplicate: a message reaches it as a
-	// bare frame with no id, so resending one that already arrived is visible to
-	// the application.
+	// failed, so a caller can retry exactly those. Re-sending a whole batch
+	// would redeliver the messages that did arrive, and whether the client can
+	// tell those apart depends on the message ID: a client SDK deduplicates by
+	// that where a message carries one, and cannot where it does not.
 	Send(ctx context.Context, messages ...OutboundMessage) error
+}
+
+// OutboundBinaryMessage is one binary message a handler sends to a connected
+// client, framed in the Celerity Binary Message Format before it goes out.
+//
+// The caller gives the parts rather than the bytes. A client reads every binary
+// frame that is not a reserved one as a framed message, so unframed bytes are
+// read as a route length and a route, leaving the application a payload short
+// by its own invented header under a route nothing serves. Laying that out is
+// not something a caller should be doing by hand.
+type OutboundBinaryMessage struct {
+	ConnectionID string
+	// Route is what the message is delivered by. Required, at most 255 bytes,
+	// and it may not begin with a byte the protocol reserves.
+	Route string
+	// FrameMessageID is the id an acknowledgement names, what deduplication
+	// keys on and what a loss notification refers to. Required where RequireAck
+	// is set, and at most 255 bytes.
+	//
+	// Distinct from MessageID, which is the runtime's own handle for the send.
+	// Where both matter, set both.
+	FrameMessageID string
+	// RequireAck asks the client to acknowledge this message, which only means
+	// anything alongside a FrameMessageID.
+	RequireAck bool
+	// Message is the payload, carried to the client without being read.
+	Message []byte
+	// InformClientsOnLoss names connections to notify if this message cannot be
+	// delivered.
+	InformClientsOnLoss []string
+	// MessageID identifies the message to the runtime, as on [OutboundMessage].
+	MessageID string
+	// Caller is the connection that caused this message to be sent, as on
+	// [OutboundMessage].
+	Caller string
+	// WaitForAck waits for the client to acknowledge this message, as on
+	// [OutboundMessage]. Unlike a text message, this composes the request for
+	// acknowledgement itself: set RequireAck and a FrameMessageID and the frame
+	// asks for one.
+	WaitForAck bool
+}
+
+// BinarySender sends binary messages, and is implemented only by senders whose
+// transport carries binary frames.
+//
+// Deliberately separate from [WebSocketSender]. API Gateway WebSocket APIs
+// carry text frames only and reject a client that sends a binary frame by
+// disconnecting it, so binary is not something every deploy target can do. A
+// field on OutboundMessage would compile everywhere and work in one place;
+// this way an application asks whether the capability is there:
+//
+//	if bs, ok := sender.(handler.BinarySender); ok {
+//		err := bs.SendBinary(ctx, msg)
+//	}
+//
+// An application built for the Celerity runtime can assert this once at startup
+// rather than at each send.
+type BinarySender interface {
+	// SendBinary frames every message and blocks until the outcome is known.
+	//
+	// A message whose parts cannot be represented in the format is refused
+	// rather than truncated into a frame that would be read as something other
+	// than what was meant, and no message in the call is sent.
+	//
+	// A partial failure returns a [SendError], as [WebSocketSender.Send] does.
+	SendBinary(ctx context.Context, messages ...OutboundBinaryMessage) error
 }
 
 // SendError reports which messages in a send failed.

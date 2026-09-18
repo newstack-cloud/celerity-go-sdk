@@ -1,0 +1,113 @@
+{
+  "$comment": [
+    "Conformance vectors for the Celerity Binary Message Format.",
+    "https://celerityframework.io/docs/framework/applications/resources/celerity-api#celerity-binary-message-format",
+    "A published wire format has one implementation per language, so parity is asserted",
+    "against these rather than assumed. Asserted by the TypeScript encoder in",
+    "packages/types/tests/binary-frame.test.ts and by the Rust encoder that serves the",
+    "same clients. Both copies of this file must stay identical; change them together.",
+    "Layout: [routeLength][route][requireAck][messageIdLength][messageId][payload]"
+  ],
+  "encodes": [
+    {
+      "name": "a message asking to be acknowledged",
+      "why": "every field populated, in the order the parser reads them",
+      "route": "orders",
+      "messageId": "m-1",
+      "requireAck": true,
+      "payloadBase64": "3q0=",
+      "framedBase64": "Bm9yZGVycwEDbS0x3q0="
+    },
+    {
+      "name": "a message asking nothing of its client",
+      "why": "no id and no ack is the common case, and the one a client must still be able to frame",
+      "route": "a",
+      "messageId": null,
+      "requireAck": false,
+      "payloadBase64": "AQ==",
+      "framedBase64": "AWEAAAE="
+    },
+    {
+      "name": "an empty payload",
+      "why": "four bytes, which is the shortest frame the parser accepts",
+      "route": "a",
+      "messageId": null,
+      "requireAck": false,
+      "payloadBase64": "",
+      "framedBase64": "AWEAAA=="
+    },
+    {
+      "name": "a route outside ASCII",
+      "why": "the length prefix counts bytes, not characters, so a multi-byte route is where a length taken from the string would go wrong",
+      "route": "caf\u00e9",
+      "messageId": null,
+      "requireAck": false,
+      "payloadBase64": "Bw==",
+      "framedBase64": "BWNhZsOpAAAH"
+    },
+    {
+      "name": "a route at the limit of its length byte",
+      "why": "255 is representable and 256 is not, so the boundary is where truncation would start",
+      "route": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+      "messageId": null,
+      "requireAck": false,
+      "payloadBase64": "",
+      "framedBase64": "/3JycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycgAA"
+    },
+    {
+      "name": "an id at the limit of its length byte",
+      "why": "same boundary on the other field",
+      "route": "a",
+      "messageId": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+      "requireAck": false,
+      "payloadBase64": "",
+      "framedBase64": "AWEA/21tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tbQ=="
+    },
+    {
+      "name": "a route beginning with a byte just past the reserved range",
+      "why": "0x5 is the last reserved byte, so 0x6 must be allowed through",
+      "route": "\u0006event",
+      "messageId": null,
+      "requireAck": false,
+      "payloadBase64": "Ag==",
+      "framedBase64": "BgZldmVudAAAAg=="
+    }
+  ],
+  "refusals": [
+    {
+      "name": "no route",
+      "why": "a route is what the message is delivered by",
+      "route": "",
+      "messageId": null,
+      "requireAck": false
+    },
+    {
+      "name": "a route longer than its length byte",
+      "why": "truncating it would frame a message under a route nobody serves",
+      "route": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+      "messageId": null,
+      "requireAck": false
+    },
+    {
+      "name": "a route beginning with a reserved byte",
+      "why": "a client would read it as a ping or an acknowledgement rather than as itself",
+      "route": "\u0004ck",
+      "messageId": null,
+      "requireAck": false
+    },
+    {
+      "name": "an id longer than its length byte",
+      "why": "a truncated id names a message that does not exist",
+      "route": "a",
+      "messageId": "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+      "requireAck": false
+    },
+    {
+      "name": "asking to be acknowledged with no id to name",
+      "why": "the sender would wait for an answer that can never come",
+      "route": "a",
+      "messageId": null,
+      "requireAck": true
+    }
+  ]
+}

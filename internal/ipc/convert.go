@@ -22,6 +22,7 @@ func fromRuntimeMessage(msg *pb.RuntimeMessage) *FromRuntime {
 			Accepted:      frame.ReadyAck.GetAccepted(),
 			UnknownTags:   frame.ReadyAck.GetUnknownTags(),
 			UnhandledTags: frame.ReadyAck.GetUnhandledTags(),
+			Reason:        RefusedReason(frame.ReadyAck.GetRefusedReason()),
 		}}
 	case *pb.RuntimeMessage_Dispatch:
 		return &FromRuntime{Dispatch: eventFrom(frame.Dispatch)}
@@ -59,6 +60,10 @@ func runtimeConfigFrom(c *pb.RuntimeConfig) *RuntimeConfig {
 		TracingEnabled: c.GetTracingEnabled(),
 		MetricsEnabled: c.GetMetricsEnabled(),
 		Handlers:       handlers,
+		Protocol: ProtocolVersion{
+			Major: c.GetProtocolVersion().GetMajor(),
+			Minor: c.GetProtocolVersion().GetMinor(),
+		},
 	}
 }
 
@@ -197,6 +202,10 @@ func readyTo(r *Ready) *pb.Ready {
 		InitialCredit: r.InitialCredit,
 		SdkVersion:    r.SDKVersion,
 		Limits:        limits,
+		ProtocolVersion: &pb.ProtocolVersion{
+			Major: r.Protocol.Major,
+			Minor: r.Protocol.Minor,
+		},
 	}
 }
 
@@ -262,6 +271,7 @@ func wsSendTo(s *WsSend) *pb.WsSend {
 			InformClientsOnLoss: m.InformClientsOnLoss,
 			MessageId:           m.MessageID,
 			Caller:              m.Caller,
+			WaitForAck:          m.WaitForAck,
 		})
 	}
 	return &pb.WsSend{CorrelationId: s.CorrelationID, Messages: messages}
