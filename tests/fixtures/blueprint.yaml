@@ -4,7 +4,7 @@
 # declares are the ones the runtime builds from these annotations, and the SDK's
 # handshake either matches them exactly or fails at startup.
 #
-# The runtime identifier is not settled: os-only.debian13 or core.debian13. The
+# The runtime identifier is os-only.debian13 for accurate demonstration purposes. The
 # runtime does not read spec.runtime at all, it is the CLI's blueprint transform
 # that does, so this suite cannot tell a correct value from a wrong one and the
 # choice has to be checked there.
@@ -21,7 +21,18 @@ resources:
       byLabel:
         application: "orders"
     spec:
-      protocols: ["http"]
+      protocols: ["http", "websocket"]
+      # A hybrid API has to say where each protocol is served, and base paths
+      # live under a domain. The domain name and certificate are required by the
+      # schema and unused when serving locally.
+      domain:
+        domainName: "tests.celerity.local"
+        certificateId: "local-tests"
+        basePaths:
+          - protocol: "http"
+            basePath: "/"
+          - protocol: "websocket"
+            basePath: "/ws"
       tracingEnabled: false
 
   getOrderHandler:
@@ -78,6 +89,104 @@ resources:
       handlerName: Orders-GetFileHandler-v1
       codeLocation: "./handlers"
       handler: "getFile"
+      runtime: "os-only.debian13"
+      memory: 1024
+      timeout: 10
+      tracingEnabled: false
+
+  # WebSocket handlers. The API states no routeKey, so it resolves to the
+  # runtime's default and the tags are {default key}::{route}. The SDK
+  # reconciles against whatever the runtime declares, so this fixture would
+  # still work with a routeKey set here.
+  getReceiptHandler:
+    type: "celerity/handler"
+    metadata:
+      displayName: Get Receipt Handler
+      labels:
+        application: "orders"
+      annotations:
+        celerity.handler.http: true
+        celerity.handler.http.method: "GET"
+        celerity.handler.http.path: "/orders/{orderId}/receipt"
+    spec:
+      handlerName: Orders-GetReceiptHandler-v1
+      codeLocation: "./handlers"
+      handler: "getReceipt"
+      runtime: "os-only.debian13"
+      memory: 1024
+      timeout: 10
+      tracingEnabled: false
+
+  # Routed entirely by the blueprint: the code registers this by name with
+  # celerity.Handler and states no method or path.
+  archiveOrderHandler:
+    type: "celerity/handler"
+    metadata:
+      displayName: Archive Order Handler
+      labels:
+        application: "orders"
+      annotations:
+        celerity.handler.http: true
+        celerity.handler.http.method: "POST"
+        celerity.handler.http.path: "/orders/{orderId}/archive"
+    spec:
+      handlerName: Orders-ArchiveOrderHandler-v1
+      codeLocation: "./handlers"
+      handler: "archiveOrder"
+      runtime: "os-only.debian13"
+      memory: 1024
+      timeout: 10
+      tracingEnabled: false
+
+  wsConnectHandler:
+    type: "celerity/handler"
+    metadata:
+      displayName: WS Connect Handler
+      labels:
+        application: "orders"
+      annotations:
+        celerity.handler.websocket: true
+        celerity.handler.websocket.route: "$connect"
+    spec:
+      handlerName: Orders-WSConnectHandler-v1
+      codeLocation: "./handlers"
+      handler: "wsConnect"
+      runtime: "os-only.debian13"
+      memory: 1024
+      timeout: 10
+      tracingEnabled: false
+
+  wsSendMessageHandler:
+    type: "celerity/handler"
+    metadata:
+      displayName: WS Send Message Handler
+      labels:
+        application: "orders"
+      annotations:
+        celerity.handler.websocket: true
+        celerity.handler.websocket.route: "sendMessage"
+    spec:
+      handlerName: Orders-WSSendMessageHandler-v1
+      codeLocation: "./handlers"
+      handler: "wsSendMessage"
+      runtime: "os-only.debian13"
+      memory: 1024
+      timeout: 10
+      tracingEnabled: false
+
+  wsDisconnectHandler:
+    type: "celerity/handler"
+    metadata:
+      displayName: WS Disconnect Handler
+      labels:
+        application: "orders"
+      annotations:
+        celerity.handler.websocket: true
+        celerity.handler.websocket.route: "$disconnect"
+    spec:
+      handlerName: Orders-WSDisconnectHandler-v1
+      codeLocation: "./handlers"
+      handler: "wsDisconnect"
       runtime: "os-only.debian13"
       memory: 1024
       timeout: 10
