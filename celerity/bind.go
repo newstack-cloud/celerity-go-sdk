@@ -30,12 +30,8 @@ func bindRequest(req *handler.Request, out any) error {
 		return err
 	}
 
-	v := reflect.ValueOf(out)
-	if v.Kind() != reflect.Pointer || v.IsNil() {
-		return nil
-	}
-	v = v.Elem()
-	if v.Kind() != reflect.Struct {
+	v, ok := structToBind(out)
+	if !ok {
 		return nil
 	}
 
@@ -54,6 +50,40 @@ func bindRequest(req *handler.Request, out any) error {
 		}
 	}
 	return nil
+}
+
+// Returns the struct to bind into, walking through however many
+// pointers stand between out and it.
+//
+// A handler taking a pointer input, func(ctx, *CreateOrder), gives a pointer to
+// a pointer here, so stopping at the first indirection would leave binding
+// looking at a pointer and quietly doing nothing: the body would decode and
+// every path, query and header tag would be ignored.
+//
+// A nil pointer along the way is allocated. json.Unmarshal allocates one where
+// the body held an object, but an empty body is treated as absent, and a GET
+// with no body still has path parameters to bind.
+func structToBind(out any) (reflect.Value, bool) {
+	v := reflect.ValueOf(out)
+	if v.Kind() != reflect.Pointer || v.IsNil() {
+		return reflect.Value{}, false
+	}
+	v = v.Elem()
+
+	for v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			if !v.CanSet() {
+				return reflect.Value{}, false
+			}
+			v.Set(reflect.New(v.Type().Elem()))
+		}
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return reflect.Value{}, false
+	}
+	return v, true
 }
 
 // taggedValue returns every value bound to a field, and whether the tag it came

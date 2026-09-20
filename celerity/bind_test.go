@@ -104,3 +104,48 @@ func (s *BindTestSuite) Test_a_path_parameter_cannot_be_spoofed_through_the_body
 
 	s.Equal("genuine", got.OrderID)
 }
+
+func (s *BindTestSuite) Test_a_handler_taking_a_pointer_binds_the_same_as_one_taking_a_value() {
+	// Nothing constrains a handler's input to be a value, and a pointer is the
+	// more natural instinct for a struct in Go. Binding has to walk through the
+	// extra indirection, or the body would decode and every path, query and
+	// header tag would be silently ignored.
+	in := bindThrough[*scalars](s.T(), &handler.Request{
+		PathParams:  handler.Params{"orderId": {"ord_42"}},
+		QueryParams: handler.Params{"limit": {"25"}},
+		Headers:     handler.Params{"x-trace-id": {"trace-9"}},
+	})
+
+	s.Require().NotNil(in)
+	s.Equal("ord_42", in.OrderID)
+	s.Equal(25, in.Limit)
+	s.Equal("trace-9", in.Trace)
+}
+
+func (s *BindTestSuite) Test_a_pointer_input_is_allocated_where_the_request_has_no_body() {
+	// An empty body is absent rather than an empty object, so nothing has
+	// allocated the input yet, and a GET still has path parameters to bind.
+	in := bindThrough[*scalars](s.T(), &handler.Request{
+		Method:     "GET",
+		PathParams: handler.Params{"orderId": {"ord_42"}},
+	})
+
+	s.Require().NotNil(in)
+	s.Equal("ord_42", in.OrderID)
+}
+
+func (s *BindTestSuite) Test_a_pointer_input_takes_the_body_and_the_request_line_together() {
+	in := bindThrough[*withBody](s.T(), &handler.Request{
+		Body:       []byte(`{"note":"ship it"}`),
+		PathParams: handler.Params{"orderId": {"ord_42"}},
+	})
+
+	s.Require().NotNil(in)
+	s.Equal("ship it", in.Note)
+	s.Equal("ord_42", in.OrderID)
+}
+
+type withBody struct {
+	OrderID string `path:"orderId"`
+	Note    string `json:"note"`
+}
