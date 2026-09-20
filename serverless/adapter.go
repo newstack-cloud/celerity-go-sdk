@@ -78,6 +78,27 @@ type WebSocketSenderProvider interface {
 	WebSocketSender(ctx context.Context, payload []byte) (handler.WebSocketSender, error)
 }
 
+// ReceiptAcknowledger is implemented by adapters whose transport leaves
+// acknowledging a client's WebSocket message to the SDK.
+//
+// The WebSocket Runtime Protocol has a message that asked to be acknowledged
+// acknowledged on receipt, which is what lets a client stop its resend timer
+// without waiting on however long the work takes. The Celerity runtime does
+// that itself, so this is empty there; a managed gateway does not, so the
+// adapter does it and an application implements none of it.
+//
+// It is a separate interface rather than a method on [Adapter] for the reason
+// [WebSocketSenderProvider] is: an adapter for a platform this does not apply
+// to is not forced to stub it.
+type ReceiptAcknowledger interface {
+	// AcknowledgeReceipt tells the client its message arrived, where the message
+	// asked to be told and the transport leaves that to the SDK.
+	//
+	// Called before the handler runs, and for a message that reaches no handler
+	// at all: the client asked whether its message arrived, and it did.
+	AcknowledgeReceipt(ctx context.Context, msg *handler.WebSocketMessage) error
+}
+
 // Handler is a resolved handler an adapter invokes, with its layers already
 // applied.
 type Handler struct {

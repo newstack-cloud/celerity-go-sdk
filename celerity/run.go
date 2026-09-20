@@ -66,7 +66,7 @@ func RunContext(ctx context.Context, app *App) error {
 		if err != nil {
 			return err
 		}
-		return serverless.Serve(ctx, adapter, app.resolver())
+		return serverless.Serve(ctx, adapter, app.Resolver())
 	default:
 		return app.serveRuntime(ctx)
 	}
@@ -111,8 +111,12 @@ func signalContext() context.Context {
 	return ctx
 }
 
-// resolver adapts the registry to what a serverless adapter resolves through.
-func (a *App) resolver() serverless.Resolver { return &registryResolver{app: a} }
+// Resolver adapts the registry to what a serverless adapter resolves through.
+//
+// [Run] uses it, and an application that owns its own entry point rather than
+// handing control to Run passes it to [serverless.Serve] or
+// [serverless.NewInvoker] itself.
+func (a *App) Resolver() serverless.Resolver { return &registryResolver{app: a} }
 
 type registryResolver struct{ app *App }
 

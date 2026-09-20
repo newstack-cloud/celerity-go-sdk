@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/newstack-cloud/celerity-go-sdk/handler"
+	"github.com/newstack-cloud/celerity-go-sdk/telemetry"
 )
 
 // Environment variables a Celerity deployment sets on each function, naming the
@@ -62,6 +63,14 @@ func (d *dispatcher) invoke(ctx context.Context, payload []byte) (any, error) {
 		return nil, fmt.Errorf("detecting event source: %w", err)
 	}
 
+	// Before resolution, so that a message reaching no handler is still
+	// acknowledged and the sender is in place for the acknowledgement to go
+	// out on.
+	if sender, ok := d.webSocketSender(ctx, kind, payload); ok {
+		ctx = WithWebSocketSender(ctx, sender)
+		d.acknowledgeReceipt(ctx, payload)
+	}
+
 	d.once.Do(func() { d.resolved, d.resolveErr = d.resolve(kind) })
 	if d.resolveErr != nil {
 		return d.noHandler(kind, d.resolveErr)
@@ -70,10 +79,6 @@ func (d *dispatcher) invoke(ctx context.Context, payload []byte) (any, error) {
 	ev, err := d.toEvent(kind, payload)
 	if err != nil {
 		return nil, err
-	}
-
-	if sender, ok := d.webSocketSender(ctx, kind, payload); ok {
-		ctx = WithWebSocketSender(ctx, sender)
 	}
 
 	res, err := d.resolved.Invoke(ctx, ev)
@@ -148,4 +153,31 @@ func (d *dispatcher) webSocketSender(
 		return nil, false
 	}
 	return sender, true
+}
+
+// acknowledgeReceipt tells a WebSocket client its message arrived, where the
+// adapter's transport leaves that to the SDK.
+//
+// A failure is logged and consumed. The message itself did arrive, and failing
+// the invocation over the receipt would give the client consequences it never
+// asked for; its own resend, after its timeout, is the recovery the protocol
+// already specifies for an acknowledgement that goes missing.
+func (d *dispatcher) acknowledgeReceipt(ctx context.Context, payload []byte) {
+	acker, ok := d.adapter.(ReceiptAcknowledger)
+	if !ok {
+		return
+	}
+
+	msg, err := d.mapper.ToWebSocketMessage(payload)
+	if err != nil || msg == nil {
+		return
+	}
+	if err := acker.AcknowledgeReceipt(ctx, msg); err != nil {
+		telemetry.LoggerFrom(ctx).WarnContext(ctx,
+			"could not acknowledge receipt of a websocket message",
+			"connectionID", msg.ConnectionID,
+			"messageID", msg.MessageID,
+			"error", err,
+		)
+	}
 }

@@ -1,8 +1,9 @@
 package celerity
 
 import (
-	"regexp"
 	"strings"
+
+	"github.com/newstack-cloud/celerity-go-sdk/handler"
 )
 
 // Handler tags are how the Celerity runtime addresses a handler. The formats
@@ -45,15 +46,14 @@ func CustomTag(handlerName string) string {
 	return "custom::" + handlerName
 }
 
-// A blueprint declares a catch-all path parameter as {name+}; the runtime's
-// router spells the same thing {*name}. Tags are built from the router's form,
-// so the translation happens once, here.
-var catchAllParam = regexp.MustCompile(`\{([A-Za-z_][A-Za-z0-9_]*)\+\}`)
-
 // NormaliseRoute converts a blueprint route template into the router's form,
 // which is what handler tags and [handler.Request.Route] are built from.
 //
 //	/files/{path+}  ->  /files/{*path}
+//
+// It is [handler.NormaliseRoute]: the same translation a serverless adapter
+// applies when it maps a route the platform states in the blueprint's form, so
+// there is one definition of the router's spelling rather than one per mapper.
 func NormaliseRoute(route string) string {
-	return catchAllParam.ReplaceAllString(route, "{*$1}")
+	return handler.NormaliseRoute(route)
 }
