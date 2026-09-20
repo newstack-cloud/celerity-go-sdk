@@ -86,7 +86,7 @@ func (s *DispatcherTestSuite) Test_resolution_happens_once_and_is_kept() {
 		s.Require().NoError(err)
 	}
 
-	// A warm invocation does no lookup.
+	// A warm invocation shouldn't do a lookup.
 	s.Equal(1, resolver.lookups)
 }
 
