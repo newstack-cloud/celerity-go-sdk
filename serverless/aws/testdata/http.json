@@ -1,0 +1,33 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /orders/{orderId}/files/{path+}",
+  "rawPath": "/orders/ord_42/files/reports/q1/summary.pdf",
+  "rawQueryString": "include=lines&include=totals",
+  "cookies": ["session=abc123", "theme=dark"],
+  "headers": {
+    "Content-Type": "application/json",
+    "X-Trace-Id": "trace-9",
+    "accept": "application/json"
+  },
+  "queryStringParameters": { "include": "lines,totals" },
+  "requestContext": {
+    "accountId": "123456789012",
+    "apiId": "api123",
+    "domainName": "api123.execute-api.eu-west-2.amazonaws.com",
+    "http": {
+      "method": "post",
+      "path": "/orders/ord_42/files/reports/q1/summary.pdf",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "203.0.113.7",
+      "userAgent": "celerity-test/1.0"
+    },
+    "requestId": "req-abc-123",
+    "routeKey": "POST /orders/{orderId}/files/{path+}",
+    "stage": "live",
+    "time": "18/Sep/2026:10:00:00 +0000",
+    "timeEpoch": 1789725600000
+  },
+  "pathParameters": { "orderId": "ord_42", "path": "reports/q1/summary.pdf" },
+  "body": "{\"note\":\"ship it\"}",
+  "isBase64Encoded": false
+}

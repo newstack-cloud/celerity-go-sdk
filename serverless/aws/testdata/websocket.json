@@ -1,0 +1,15 @@
+{
+  "requestContext": {
+    "routeKey": "sendMessage",
+    "eventType": "MESSAGE",
+    "connectionId": "conn-77",
+    "requestId": "ws-req-5",
+    "domainName": "ws123.execute-api.eu-west-2.amazonaws.com",
+    "stage": "live",
+    "apiId": "ws123",
+    "messageDirection": "IN",
+    "identity": { "sourceIp": "198.51.100.4" }
+  },
+  "body": "{\"event\":\"sendMessage\",\"ack\":true,\"messageId\":\"client-msg-1\",\"data\":{\"text\":\"hello\"}}",
+  "isBase64Encoded": false
+}

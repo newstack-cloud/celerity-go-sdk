@@ -6,9 +6,10 @@ a provider's serverless environment without changing a line.
 See [celerityframework.io](https://celerityframework.io) for the framework
 documentation.
 
-> **Status: early.** The protocol client, the registration API and the module
-> layout are in place. The AWS adapter, the resource implementations and
-> handler extraction are scaffolded and not yet implemented.
+> **Status: early.** The protocol client, the registration API, the module
+> layout and the AWS Lambda adapter are in place. The resource
+> implementations and handler extraction are scaffolded and not yet
+> implemented.
 
 ## Installing
 

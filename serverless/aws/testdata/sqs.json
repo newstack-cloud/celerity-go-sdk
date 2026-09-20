@@ -1,0 +1,29 @@
+{
+  "Records": [
+    {
+      "messageId": "msg-1",
+      "receiptHandle": "receipt-1",
+      "body": "{\"orderId\":\"ord_42\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1789725600000"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "d41d8cd98f00b204e9800998ecf8427e",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:eu-west-2:123456789012:orders-queue",
+      "awsRegion": "eu-west-2"
+    },
+    {
+      "messageId": "msg-2",
+      "receiptHandle": "receipt-2",
+      "body": "{\"orderId\":\"ord_43\"}",
+      "attributes": {},
+      "messageAttributes": {},
+      "md5OfBody": "d41d8cd98f00b204e9800998ecf8427e",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:eu-west-2:123456789012:orders-queue",
+      "awsRegion": "eu-west-2"
+    }
+  ]
+}

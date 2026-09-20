@@ -1,0 +1,11 @@
+{
+  "version": "0",
+  "id": "eb-event-1",
+  "detail-type": "Scheduled Event",
+  "source": "aws.events",
+  "account": "123456789012",
+  "time": "2026-09-18T10:00:00Z",
+  "region": "eu-west-2",
+  "resources": ["arn:aws:events:eu-west-2:123456789012:rule/nightly-report"],
+  "detail": { "window": "24h" }
+}
