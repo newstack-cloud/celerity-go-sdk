@@ -30,7 +30,7 @@ jobs:
           # fetched go1.26.6, leaving two patched standard library advisories
           # reported against every build.
           check-latest: true
-      - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - run: go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
       - run: bash scripts/vulncheck.sh
 
   trivy:
@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: aquasecurity/trivy-action@0.35.0
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .

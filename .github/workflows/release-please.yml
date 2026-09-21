@@ -5,13 +5,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     outputs:
       paths_released: ${{ steps.release.outputs.paths_released }}
       cli_tag: ${{ steps.release.outputs['cmd/celerity-go--tag_name'] }}
@@ -24,7 +23,7 @@ jobs:
       #
       # Set RELEASE_PLEASE_TOKEN to a personal access token if something outside
       # this workflow ever has to react to the tag, and it will be preferred.
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
