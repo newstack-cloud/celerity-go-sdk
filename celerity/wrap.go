@@ -25,10 +25,38 @@ func httpErrorResult(ev *handler.Event, err error) (*handler.Result, error) {
 // dispatcher and the adapters work in. Decoding is the framework's job so that
 // a handler signature carries only what the handler is about.
 
+// Reports an event carrying a source other than the one a handler
+// serves.
+//
+// This is not the ordinary path, the runtime dispatches by tag, and a tag names one
+// source. It is reachable through the runtime's local invoke endpoint, which
+// addresses any declared handler by name and dispatches every invocation as a
+// custom one, and through a blueprint whose annotations disagree with what the
+// code registered.
+//
+// Worth refusing rather than tolerating. Two of these wrappers would otherwise
+// dereference a source that is not there, and the rest would run the handler on
+// a zero-valued input and answer as though the request had simply been empty,
+// which is indistinguishable from a real answer.
+func wrongSource(ev *handler.Event, serves handler.Kind) error {
+	arrived := ev.Kind
+	if arrived == "" {
+		arrived = "unknown"
+	}
+	return fmt.Errorf(
+		"celerity: handler %q serves %s events and was dispatched a %s event",
+		ev.Tag, serves, arrived,
+	)
+}
+
 func wrapHTTP(
 	h func(context.Context, *handler.Request) (*handler.Response, error),
 ) handler.Func {
 	return func(ctx context.Context, ev *handler.Event) (*handler.Result, error) {
+		if ev.HTTP == nil {
+			return nil, wrongSource(ev, handler.KindHTTP)
+		}
+
 		res, err := h(ctx, ev.HTTP)
 		if err != nil {
 			return httpErrorResult(ev, err)
@@ -39,6 +67,10 @@ func wrapHTTP(
 
 func wrapTypedHTTP[In, Out any](validate func(any) error, h HandlerFunc[In, Out]) handler.Func {
 	return func(ctx context.Context, ev *handler.Event) (*handler.Result, error) {
+		if ev.HTTP == nil {
+			return nil, wrongSource(ev, handler.KindHTTP)
+		}
+
 		var in In
 		if err := bindRequest(ev.HTTP, &in); err != nil {
 			// The request is malformed, which is the caller's mistake and a 400
@@ -69,6 +101,9 @@ func wrapTypedHTTP[In, Out any](validate func(any) error, h HandlerFunc[In, Out]
 func wrapTypedWebSocket[In, Out any](validate func(any) error, h HandlerFunc[In, Out]) handler.Func {
 	return func(ctx context.Context, ev *handler.Event) (*handler.Result, error) {
 		var in In
+		if ev.WebSocket == nil {
+			return nil, wrongSource(ev, handler.KindWebSocket)
+		}
 		if err := decodeInto(ev.WebSocket.Message, &in); err != nil {
 			return nil, err
 		}
@@ -94,6 +129,10 @@ func wrapConsumer(
 	h func(context.Context, *handler.ConsumerBatch) (*handler.BatchResult, error),
 ) handler.Func {
 	return func(ctx context.Context, ev *handler.Event) (*handler.Result, error) {
+		if ev.Consumer == nil {
+			return nil, wrongSource(ev, handler.KindConsumer)
+		}
+
 		res, err := h(ctx, ev.Consumer)
 		if err != nil {
 			return nil, err
@@ -107,6 +146,9 @@ func wrapConsumer(
 
 func wrapSchedule(h func(context.Context, *handler.ScheduleTrigger) error) handler.Func {
 	return func(ctx context.Context, ev *handler.Event) (*handler.Result, error) {
+		if ev.Schedule == nil {
+			return nil, wrongSource(ev, handler.KindSchedule)
+		}
 		if err := h(ctx, ev.Schedule); err != nil {
 			return nil, err
 		}
@@ -117,6 +159,9 @@ func wrapSchedule(h func(context.Context, *handler.ScheduleTrigger) error) handl
 func wrapCustom[In, Out any](validate func(any) error, h HandlerFunc[In, Out]) handler.Func {
 	return func(ctx context.Context, ev *handler.Event) (*handler.Result, error) {
 		var in In
+		if ev.Custom == nil {
+			return nil, wrongSource(ev, handler.KindCustom)
+		}
 		if err := decodeInto(ev.Custom.Input, &in); err != nil {
 			return nil, err
 		}
