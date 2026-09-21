@@ -29,6 +29,18 @@ type StatusCoder interface {
 	StatusCode() int
 }
 
+// TypedError names its own failure for the protocol's error type field.
+//
+// Without it the field carries the Go type, which is informative where an
+// application declared the type and noise where it did not. errors.New produces
+// *errors.errorString, which names how the error was built rather than what
+// went wrong. The runtime prepends this field to the message on its local
+// invoke endpoint, so what is put here is read by whoever called.
+type TypedError interface {
+	error
+	ErrorType() string
+}
+
 // DetailCarrier is implemented by an error that has structured detail to answer
 // with alongside its message.
 //
@@ -75,6 +87,10 @@ func (e *StatusError) Error() string {
 
 // StatusCode satisfies [StatusCoder].
 func (e *StatusError) StatusCode() int { return e.Status }
+
+// ErrorType classifies this failure for the protocol's error type field,
+// satisfying [TypedError].
+func (e *StatusError) ErrorType() string { return "StatusError" }
 
 // Unwrap exposes the cause, so errors.Is and errors.As see through to it.
 func (e *StatusError) Unwrap() error { return e.Err }

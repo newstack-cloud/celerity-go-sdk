@@ -189,18 +189,25 @@ func (s *ValidateTestSuite) Test_an_unstructured_failure_is_not_repeated_to_the_
 	s.Equal(handler.CodeInvalid, got.Details[0].Code)
 }
 
-// The cause is kept for logs even though it never reaches the caller, so an
-// operator can still see which rule the input broke.
-func (s *ValidateTestSuite) Test_an_unstructured_cause_is_kept_for_logs() {
-	cause := errors.New("Field validation for 'Total' failed on the 'gt' tag")
+// The cause is kept for logs, reached by unwrapping rather than by rendering
+// the error, so an operator can still see which rule the input broke without
+// the library's own text being exposed in validation results.
+func (s *ValidateTestSuite) Test_the_cause_is_kept_for_logs_and_out_of_the_answer() {
+	cause := errors.New("Key: 'createOrder.Total' Error:Field validation for 'Total' " +
+		"failed on the 'gt' tag")
 	wrapped := &handler.ValidationError{
 		Message: "the request is not valid",
 		Issues:  handler.IssuesFrom(cause),
 		Err:     cause,
 	}
 
-	s.ErrorIs(wrapped, cause)
-	s.True(strings.Contains(wrapped.Error(), "gt"), "Error() should carry the cause")
+	s.ErrorIs(wrapped, cause, "an operator reaches the cause by unwrapping")
+	s.False(strings.Contains(wrapped.Error(), "createOrder"),
+		"the Go type the validator was given reached the caller")
+	s.False(strings.Contains(wrapped.Error(), "Field validation"),
+		"the library's own text reached the caller")
+	s.True(strings.Contains(wrapped.Error(), "the request is not valid"),
+		"the caller is still told what failed")
 }
 
 type failingValidator struct{ err error }

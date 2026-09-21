@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 )
@@ -68,9 +67,10 @@ type ValidationError struct {
 	// such as the body or the query, rather than repeating the issues.
 	Message string
 	Issues  []ValidationIssue
-	// Err is the underlying cause, kept for logs and errors.Is. Never answered
-	// to the caller as a validation library's own error text commonly names types
-	// and internal paths.
+	// Err is the underlying cause, reachable through errors.Is and
+	// errors.Unwrap. Never answered to the caller, and so deliberately absent
+	// from Error, as a validation library's own error text commonly names types
+	// and internal paths. Code that wants it in a log unwraps it.
 	Err error
 }
 
@@ -84,9 +84,6 @@ func (e *ValidationError) Error() string {
 			b.WriteString(": ")
 		}
 		b.WriteString(issue.Message)
-	}
-	if e.Err != nil {
-		fmt.Fprintf(&b, " (%v)", e.Err)
 	}
 	return b.String()
 }
@@ -102,6 +99,10 @@ func (e *ValidationError) ValidationIssues() []ValidationIssue { return e.Issues
 func (e *ValidationError) Details() any { return e.Issues }
 
 func (e *ValidationError) Unwrap() error { return e.Err }
+
+// ErrorType classifies this failure for the protocol's error type field,
+// satisfying [TypedError].
+func (e *ValidationError) ErrorType() string { return "ValidationError" }
 
 // Invalid returns a validation error carrying the given issues.
 func Invalid(message string, issues ...ValidationIssue) *ValidationError {

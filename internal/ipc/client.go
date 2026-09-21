@@ -266,6 +266,11 @@ func errorFrom(v any) *handler.Error {
 	switch e := v.(type) {
 	case *handler.Error:
 		return e
+	case handler.TypedError:
+		// An error that names its own failure, which the SDK's own do. The Go
+		// type is the fallback rather than the answer, since the runtime puts
+		// this field in front of the message on its invoke endpoint.
+		return &handler.Error{Message: e.Error(), Type: e.ErrorType()}
 	case error:
 		return &handler.Error{Message: e.Error(), Type: fmt.Sprintf("%T", e)}
 	default:
