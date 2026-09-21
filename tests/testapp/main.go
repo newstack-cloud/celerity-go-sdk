@@ -78,7 +78,32 @@ func main() {
 	celerity.OnMessage(app, "sendMessage", wsSendMessage, celerity.Named("wsSendMessageHandler"))
 	celerity.OnDisconnect(app, wsDisconnect, celerity.Named("wsDisconnectHandler"))
 
+	// Nothing triggers a custom handler, it is reached by name through the
+	// runtime's local invoke endpoint or from another handler. The name is the
+	// blueprint's resource name, which is what the runtime builds its tag from.
+	celerity.Invoke(app, "recalculatePricingHandler", recalculatePricing)
+
 	celerity.Run(app)
+}
+
+// pricingRequest is validated exactly as an HTTP handler's input is, so a
+// custom invocation with a bad payload is answered with the same structured
+// detail rather than reaching the handler.
+type pricingRequest struct {
+	OrderID  string  `json:"orderId"  validate:"required"`
+	Discount float64 `json:"discount" validate:"gte=0,lte=100"`
+}
+
+type pricingResult struct {
+	OrderID string  `json:"orderId"`
+	Total   float64 `json:"total"`
+}
+
+func recalculatePricing(_ context.Context, in pricingRequest) (pricingResult, error) {
+	return pricingResult{
+		OrderID: in.OrderID,
+		Total:   100 - in.Discount,
+	}, nil
 }
 
 func getOrder(_ context.Context, in order) (order, error) {

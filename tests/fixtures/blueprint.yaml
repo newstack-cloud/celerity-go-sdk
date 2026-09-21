@@ -191,3 +191,23 @@ resources:
       memory: 1024
       timeout: 10
       tracingEnabled: false
+
+  # A custom handler, which is what a handler resource carrying no protocol
+  # annotation is, nothing triggers it, and it is reached by name through the
+  # runtime's local invoke endpoint or from another handler. Its tag is built
+  # from the resource name, so the code registers it under that rather than
+  # under spec.handlerName.
+  recalculatePricingHandler:
+    type: "celerity/handler"
+    metadata:
+      displayName: Recalculate Pricing Handler
+      labels:
+        application: "orders"
+    spec:
+      handlerName: Orders-RecalculatePricingHandler-v1
+      codeLocation: "./handlers"
+      handler: "recalculatePricing"
+      runtime: "os-only.debian13"
+      memory: 1024
+      timeout: 10
+      tracingEnabled: false

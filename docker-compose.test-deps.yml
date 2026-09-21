@@ -19,6 +19,13 @@ services:
       # unreliable on a Docker Desktop host and would be a second thing to
       # debug when a test fails.
       CELERITY_SERVER_LOOPBACK_ONLY: "false"
+      # The local invoke endpoint, which is how the suite reaches a custom
+      # handler: nothing triggers one, so without this there is no way to make
+      # the runtime dispatch it. Guarded by the platform as well as by the
+      # switch, since it runs any handler the blueprint declares by name with no
+      # authentication, and the image defaults the platform to "other".
+      CELERITY_ENABLE_LOCAL_INVOKE: "true"
+      CELERITY_RUNTIME_PLATFORM: local
     volumes:
       - ./tests/.build/handlers:/opt/celerity/app/handlers:ro
       - ./tests/fixtures/blueprint.yaml:/opt/celerity/app/blueprint.yaml:ro
