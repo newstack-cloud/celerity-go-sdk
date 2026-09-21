@@ -29,8 +29,9 @@ jobs:
           cache-dependency-path: "**/go.sum"
 
       - name: Install tooling
+        # staticcheck: 2026.2.1
         run: |
-          go install honnef.co/go/tools/cmd/staticcheck@2026.2.1
+          go install honnef.co/go/tools/cmd/staticcheck@1285a6a5ec1e0ebb658f49e82b6c566a878cc3cb
           go install github.com/wadey/gocovmerge@b5bfa59ec0adc420475f97f89b58045c721d761c
 
       # buf is the only tool the protocol needs: it lints the contract, checks
