@@ -3,6 +3,8 @@ go 1.26.0
 use (
 	.
 	./cmd/celerity-go
+	./config/aws
+	./config/local
 	./resources/aws
 	./serverless/aws
 )

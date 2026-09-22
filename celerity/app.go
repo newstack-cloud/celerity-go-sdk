@@ -15,6 +15,7 @@ import (
 	"errors"
 	"runtime"
 
+	"github.com/newstack-cloud/celerity-go-sdk/config"
 	"github.com/newstack-cloud/celerity-go-sdk/layer"
 	"github.com/newstack-cloud/celerity-go-sdk/resources"
 	"github.com/newstack-cloud/celerity-go-sdk/serverless"
@@ -42,6 +43,7 @@ type options struct {
 	resourceProvider  resources.Provider
 	webSocketRouteKey string
 	validator         Validator
+	config            *config.Service
 }
 
 // Option configures an application.
@@ -74,6 +76,29 @@ func WithWebSocketRouteKey(key string) Option {
 	return func(o *options) { o.webSocketRouteKey = key }
 }
 
+// WithConfig supplies the configuration service explicitly.
+//
+// Applications do not normally need it as the stores a blueprint's
+// celerity/config resources were deployed as are described in the environment,
+// and reading them needs whichever provider module is linked, so
+// [config.FromEnvironment] does this at startup. It is here for a test and for
+// a local run that wants to read from a map rather than reach a real store:
+//
+//	cfg := config.New()
+//	cfg.Register("settings", config.NewNamespace(
+//		config.MapBackend{"settings": {"REGION": "eu-west-2"}}, "settings"))
+//
+//	app := celerity.New(celerity.WithConfig(cfg))
+//
+// The service is not put in a handler's context. It exists before any event
+// does and is the same object for every one of them, so a handler that reads
+// configuration is given it, the way it is given a store or a client:
+//
+//	celerity.Get(app, "/orders", orders.List(store, cfg))
+func WithConfig(svc *config.Service) Option {
+	return func(o *options) { o.config = svc }
+}
+
 // WithLogger replaces the logger handlers receive through
 // [telemetry.LoggerFrom].
 func WithLogger(l telemetry.Logger) Option {
@@ -91,8 +116,34 @@ func New(opts ...Option) *App {
 	for _, opt := range opts {
 		opt(&o)
 	}
-	return &App{registry: NewRegistry(), options: o}
+
+	app := &App{registry: NewRegistry(), options: o}
+
+	// What the deployment described, unless a service was supplied. Built here
+	// rather than on first use so that a deployment asking for a store this
+	// binary has no provider for is reported with the registration errors,
+	// which Run prints together, rather than on whichever event first read a
+	// value.
+	if app.options.config == nil {
+		svc, err := config.FromEnvironment()
+		if err != nil {
+			app.errs = append(app.errs, err)
+			svc = config.New()
+		}
+		app.options.config = svc
+	}
+	return app
 }
+
+// Config returns the application's configuration.
+//
+// This is never nil, an application whose deployment described no store gets a service
+// with no namespaces, so a provider reading it is told the application declares
+// no celerity/config resource rather than having to guard against nothing.
+//
+// Read by resource providers resolving a blueprint name to the identifier a
+// deployment recorded. A handler is given the service as an argument instead.
+func (a *App) Config() *config.Service { return a.options.config }
 
 // Registry returns the handlers registered so far.
 //

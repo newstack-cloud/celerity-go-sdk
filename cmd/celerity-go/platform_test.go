@@ -98,3 +98,31 @@ func (s *PlatformTestSuite) Test_an_unsupported_target_is_refused_by_name() {
 		})
 	}
 }
+
+func (s *PlatformTestSuite) Test_the_local_config_provider_is_linked_whatever_the_target() {
+	// A local session runs the artefact built for the deployment's own target
+	// with the platform set to local, so both providers have to be in the
+	// binary and the platform decides which serves. Without this, `celerity
+	// dev` would read no configuration and a developer would have to add an
+	// import to get parity with Node and Python.
+	for _, target := range []string{TargetAWS, TargetAWSServerless} {
+		s.Run(target, func() {
+			got, err := GeneratePlatformFile("main", target)
+
+			s.Require().NoError(err)
+			s.Contains(got, LocalConfig)
+		})
+	}
+}
+
+func (s *PlatformTestSuite) Test_an_import_is_never_written_for_a_package_that_does_not_exist() {
+	// A target whose other packages are ready is not held back by one that is
+	// not, and an unresolvable import says nothing about why it failed.
+	got, err := GeneratePlatformFile("main", TargetAWSServerless)
+
+	s.Require().NoError(err)
+	s.NotContains(got, "/resources/gcp", "another platform's packages are not built")
+	s.Contains(got, "/serverless/aws")
+	s.Contains(got, "/resources/aws")
+	s.Contains(got, "/config/aws")
+}

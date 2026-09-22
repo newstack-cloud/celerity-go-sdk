@@ -5,7 +5,7 @@
 # what a Go application built with this SDK is, so the binary is mounted in at
 # the path the image expects and the runtime supervises it.
 #
-# Started and stopped by scripts/run-tests.sh --with-runtime, which builds the
+# Started and stopped by scripts/run-tests.sh --with-integration, which builds the
 # binary for the container's platform first.
 services:
   runtime:
@@ -26,8 +26,46 @@ services:
       # authentication, and the image defaults the platform to "other".
       CELERITY_ENABLE_LOCAL_INVOKE: "true"
       CELERITY_RUNTIME_PLATFORM: local
+      # Where the local consumer reads from. The platform being local is what
+      # selects the Redis-backed consumer over a provider's own queue service,
+      # and the runtime refuses to start if it cannot reach this, so valkey is a
+      # dependency of the runtime rather than an optional extra.
+      CELERITY_LOCAL_QUEUE_ENDPOINT: redis://valkey:6379
+    depends_on:
+      valkey:
+        condition: service_healthy
     volumes:
       - ./tests/.build/handlers:/opt/celerity/app/handlers:ro
       - ./tests/fixtures/blueprint.yaml:/opt/celerity/app/blueprint.yaml:ro
     ports:
       - "${CELERITY_TEST_RUNTIME_PORT:-8080}:8080"
+
+  # The queue and schedule source for the local consumer, which is Redis
+  # streams. Valkey rather than Redis because it is what the runtime's own
+  # suites use, and the two are compatible for what is needed here.
+  #
+  # Published to the host as well, so the suite can put a message on a stream
+  # and watch a Go handler receive it.
+  valkey:
+    image: valkey/valkey:8.1.3
+    ports:
+      - "${CELERITY_TEST_VALKEY_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  localstack:
+    image: localstack/localstack:4.14
+    ports:
+      - "${CELERITY_TEST_LOCALSTACK_PORT:-4566}:4566"
+    environment:
+      SERVICES: ssm,secretsmanager
+      DEBUG: 0
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health || exit 1"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 10s

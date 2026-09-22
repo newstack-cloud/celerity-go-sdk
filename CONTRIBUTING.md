@@ -18,7 +18,7 @@ here is developed as a unit, so committing it means a clone builds without recon
 |---|---|
 | `bash scripts/build.sh` | Build every module |
 | `bash scripts/run-tests.sh` | Every test; needs nothing installed |
-| `bash scripts/run-tests.sh --with-runtime` | Also the suite against a real runtime container |
+| `bash scripts/run-tests.sh --with-integration` | Also every integration suite, bringing up the runtime container and the services the provider modules read |
 | `bash scripts/lint.sh` | `go vet` and staticcheck over every module |
 | `bash scripts/check-format.sh` | Fail on anything not gofmt-formatted |
 | `bash scripts/gen-proto.sh` | Regenerate the protocol stubs |
@@ -157,7 +157,7 @@ tag construction belong to the runtime, and a stand-in that agreed with the SDK
 about them would prove nothing.
 
 ```bash
-bash scripts/run-tests.sh --with-runtime
+bash scripts/run-tests.sh --with-integration
 ```
 
 That pulls the pinned `celerity-runtime-core` image, builds

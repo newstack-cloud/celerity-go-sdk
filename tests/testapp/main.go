@@ -10,7 +10,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"regexp"
+	"sync"
 
 	"github.com/go-playground/validator/v10"
 
@@ -83,7 +85,82 @@ func main() {
 	// blueprint's resource name, which is what the runtime builds its tag from.
 	celerity.Invoke(app, "recalculatePricingHandler", recalculatePricing)
 
+	// A batch handler and a scheduled one. Both are keyed by the source id the
+	// blueprint gave them, and neither answers a caller, so what they receive is
+	// reported over HTTP instead.
+	celerity.Consume(app, "ordersQueue", processOrders, celerity.Named("processOrdersHandler"))
+	celerity.Schedule(app, "nightlyReport", buildReport, celerity.Named("buildReportHandler"))
+	celerity.Get(app, "/processed", processed, celerity.Named("processedHandler"))
+
 	celerity.Run(app)
+}
+
+// seen records what the handlers with no response of their own received, so the
+// suite can assert on them over HTTP.
+//
+// Guarded because a consumer batch and a request are handled on different
+// goroutines, and the runtime may dispatch several batches at once.
+var seen = struct {
+	mu        sync.Mutex
+	orders    []string
+	schedules []string
+	// A count of the times the handler determines processing has failed
+	// where the message should be left on its source and delivered again.
+	poisonAttempts map[string]int
+}{poisonAttempts: map[string]int{}}
+
+type processedReport struct {
+	Orders         []string       `json:"orders"`
+	Schedules      []string       `json:"schedules"`
+	PoisonAttempts map[string]int `json:"poisonAttempts"`
+}
+
+// Takes the whole batch and fails only the records it could not
+// handle, so one bad message is redriven alone rather than taking the good ones
+// with it.
+func processOrders(_ context.Context, batch *handler.ConsumerBatch) (*handler.BatchResult, error) {
+	res := &handler.BatchResult{}
+
+	seen.mu.Lock()
+	defer seen.mu.Unlock()
+	for _, record := range batch.Records {
+		var order struct {
+			OrderID string `json:"orderId"`
+			Poison  bool   `json:"poison"`
+		}
+		if err := json.Unmarshal(record.Body, &order); err != nil {
+			res.Fail(record.MessageID, err)
+			continue
+		}
+		// A record the application decides it cannot handle, so the suite can
+		// see that naming one leaves it behind and acknowledges the rest.
+		if order.Poison {
+			seen.poisonAttempts[order.OrderID]++
+			res.Fail(record.MessageID, errors.New("this order cannot be processed"))
+			continue
+		}
+		seen.orders = append(seen.orders, order.OrderID)
+	}
+	return res, nil
+}
+
+func buildReport(_ context.Context, trigger *handler.ScheduleTrigger) error {
+	seen.mu.Lock()
+	defer seen.mu.Unlock()
+	seen.schedules = append(seen.schedules, trigger.ScheduleID)
+	return nil
+}
+
+func processed(_ context.Context, _ struct{}) (processedReport, error) {
+	seen.mu.Lock()
+	defer seen.mu.Unlock()
+	attempts := make(map[string]int, len(seen.poisonAttempts))
+	maps.Copy(attempts, seen.poisonAttempts)
+	return processedReport{
+		Orders:         append([]string(nil), seen.orders...),
+		Schedules:      append([]string(nil), seen.schedules...),
+		PoisonAttempts: attempts,
+	}, nil
 }
 
 // pricingRequest is validated exactly as an HTTP handler's input is, so a

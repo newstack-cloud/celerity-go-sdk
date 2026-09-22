@@ -11,5 +11,5 @@
 // Every file here is behind a //go:build integration tag, so go test ./...
 // stays fast and needs nothing installed:
 //
-//	bash scripts/run-tests.sh --with-runtime
+//	bash scripts/run-tests.sh --with-integration
 package tests

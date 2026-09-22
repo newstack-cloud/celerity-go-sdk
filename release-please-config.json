@@ -17,7 +17,23 @@
       "release-type": "go",
       "package-name": "celerity-go-sdk",
       "include-component-in-tag": false,
-      "exclude-paths": ["serverless/aws", "resources/aws", "cmd/celerity-go"]
+      "exclude-paths": [
+        "config/aws",
+        "config/local",
+        "serverless/aws",
+        "resources/aws",
+        "cmd/celerity-go"
+      ]
+    },
+    "config/aws": {
+      "release-type": "go",
+      "component": "config/aws",
+      "package-name": "config-aws"
+    },
+    "config/local": {
+      "release-type": "go",
+      "component": "config/local",
+      "package-name": "config-local"
     },
     "serverless/aws": {
       "release-type": "go",

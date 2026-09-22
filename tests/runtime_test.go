@@ -10,7 +10,7 @@
 //
 // Run with:
 //
-//	bash scripts/run-tests.sh --with-runtime
+//	bash scripts/run-tests.sh --with-integration
 package tests
 
 import (

@@ -4,6 +4,8 @@
 
 MODULES=(
   "."
+  "config/aws"
+  "config/local"
   "serverless/aws"
   "resources/aws"
   "cmd/celerity-go"

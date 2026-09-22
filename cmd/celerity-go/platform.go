@@ -28,6 +28,9 @@ type platform struct {
 	// serverless deployments since handler code reaches a bucket the same way in
 	// either.
 	Resources string
+	// Config is the provider that reads the platform's own configuration
+	// stores, a parameter store or a secret manager.
+	Config string
 }
 
 const modulePath = "github.com/newstack-cloud/celerity-go-sdk"
@@ -36,12 +39,53 @@ const modulePath = "github.com/newstack-cloud/celerity-go-sdk"
 // because Go links what is imported: the mapping has to be applied before the
 // build, not during it.
 var platforms = map[string]platform{
-	TargetAWS:              {Resources: modulePath + "/resources/aws"},
-	TargetAWSServerless:    {Adapter: modulePath + "/serverless/aws", Resources: modulePath + "/resources/aws"},
-	TargetGCloud:           {Resources: modulePath + "/resources/gcp"},
-	TargetGCloudServerless: {Adapter: modulePath + "/serverless/gcp", Resources: modulePath + "/resources/gcp"},
-	TargetAzure:            {Resources: modulePath + "/resources/azure"},
-	TargetAzureServerless:  {Adapter: modulePath + "/serverless/azure", Resources: modulePath + "/resources/azure"},
+	TargetAWS: {
+		Resources: modulePath + "/resources/aws",
+		Config:    modulePath + "/config/aws",
+	},
+	TargetAWSServerless: {
+		Adapter:   modulePath + "/serverless/aws",
+		Resources: modulePath + "/resources/aws",
+		Config:    modulePath + "/config/aws",
+	},
+	TargetGCloud: {
+		Resources: modulePath + "/resources/gcp",
+		Config:    modulePath + "/config/gcp",
+	},
+	TargetGCloudServerless: {
+		Adapter:   modulePath + "/serverless/gcp",
+		Resources: modulePath + "/resources/gcp",
+		Config:    modulePath + "/config/gcp",
+	},
+	TargetAzure: {
+		Resources: modulePath + "/resources/azure",
+		Config:    modulePath + "/config/azure",
+	},
+	TargetAzureServerless: {
+		Adapter:   modulePath + "/serverless/azure",
+		Resources: modulePath + "/resources/azure",
+		Config:    modulePath + "/config/azure",
+	},
+}
+
+// LocalConfig reads configuration from the Valkey instance
+// a local development session runs, and is linked to whatever the target is.
+//
+// A local session runs the artefact built for the deployment's own target, with
+// the platform set to local rather than to that target's: `celerity dev` does
+// not rebuild for a target of its own. So both providers are linked, and which
+// one serves is decided at startup from the platform, exactly as a serverless
+// adapter is. An application doesn't need to do anything to have configuration work in both.
+const LocalConfig = modulePath + "/config/local"
+
+// built lists the platform packages that exist today, so that a target whose
+// other packages are ready is not held back by one that is not, and an import
+// is never written for a package that cannot be resolved.
+var built = map[string]bool{
+	modulePath + "/serverless/aws": true,
+	modulePath + "/resources/aws":  true,
+	modulePath + "/config/aws":     true,
+	LocalConfig:                    true,
 }
 
 // implemented lists the targets whose packages exist today. A target that is
@@ -108,12 +152,11 @@ func GeneratePlatformFile(packageName, target string) (string, error) {
 		return "", err
 	}
 
-	imports := make([]string, 0, 2)
-	if p.Adapter != "" {
-		imports = append(imports, p.Adapter)
-	}
-	if p.Resources != "" {
-		imports = append(imports, p.Resources)
+	imports := make([]string, 0, 4)
+	for _, pkg := range []string{p.Adapter, p.Resources, p.Config, LocalConfig} {
+		if pkg != "" && built[pkg] {
+			imports = append(imports, pkg)
+		}
 	}
 	sort.Strings(imports)
 

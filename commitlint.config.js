@@ -24,7 +24,7 @@ module.exports = {
     "scope-enum": [
       2,
       "always",
-      ["core", "serverless-aws", "resources-aws", "cli", "deps"],
+      ["core", "config-aws", "config-local", "serverless-aws", "resources-aws", "cli", "deps"],
     ],
   },
 };

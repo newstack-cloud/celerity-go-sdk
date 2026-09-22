@@ -211,3 +211,92 @@ resources:
       memory: 1024
       timeout: 10
       tracingEnabled: false
+
+  # A queue consumer. The source id is what the handler tag is keyed by, so the
+  # code registers against "ordersQueue" and the runtime builds
+  # source::ordersQueue::processOrdersHandler from this and the handler's
+  # resource name.
+  #
+  # Served locally by Redis streams, the runtime reads celerity:queue:ordersQueue,
+  # which is what the suite publishes to.
+  ordersConsumer:
+    type: "celerity/consumer"
+    metadata:
+      displayName: Orders Consumer
+    linkSelector:
+      byLabel:
+        consumer: "orders"
+    spec:
+      sourceId: "ordersQueue"
+      batchSize: 10
+      visibilityTimeout: 30
+      waitTimeSeconds: 1
+      partialFailures: true
+
+  processOrdersHandler:
+    type: "celerity/handler"
+    metadata:
+      displayName: Process Orders Handler
+      labels:
+        consumer: "orders"
+      annotations:
+        celerity.handler.consumer: true
+    spec:
+      handlerName: Orders-ProcessOrdersHandler-v1
+      codeLocation: "./handlers"
+      handler: "processOrders"
+      runtime: "os-only.debian13"
+      memory: 1024
+      timeout: 10
+      tracingEnabled: false
+
+  # A schedule. Locally the runtime does not run a clock of its own, it reads
+  # celerity:schedules:nightlyReport, so a trigger is something published to
+  # that stream, which is what lets the suite fire it on demand.
+  nightlyReport:
+    type: "celerity/schedule"
+    metadata:
+      displayName: Nightly Report
+    linkSelector:
+      byLabel:
+        schedule: "nightly"
+    spec:
+      schedule: "cron(0 0 * * ? *)"
+
+  buildReportHandler:
+    type: "celerity/handler"
+    metadata:
+      displayName: Build Report Handler
+      labels:
+        schedule: "nightly"
+      annotations:
+        celerity.handler.schedule: true
+    spec:
+      handlerName: Orders-BuildReportHandler-v1
+      codeLocation: "./handlers"
+      handler: "buildReport"
+      runtime: "os-only.debian13"
+      memory: 1024
+      timeout: 10
+      tracingEnabled: false
+
+  # Reports what the consumer and schedule handlers have seen, so the suite can
+  # assert on work that produces no response of its own.
+  processedHandler:
+    type: "celerity/handler"
+    metadata:
+      displayName: Processed Handler
+      labels:
+        application: "orders"
+      annotations:
+        celerity.handler.http: true
+        celerity.handler.http.method: "GET"
+        celerity.handler.http.path: "/processed"
+    spec:
+      handlerName: Orders-ProcessedHandler-v1
+      codeLocation: "./handlers"
+      handler: "processed"
+      runtime: "os-only.debian13"
+      memory: 1024
+      timeout: 10
+      tracingEnabled: false
