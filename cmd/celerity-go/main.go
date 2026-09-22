@@ -73,6 +73,8 @@ func runGenerate(args []string) error {
 	target := fs.String("target", os.Getenv("CELERITY_DEPLOY_TARGET"),
 		"deploy target from the blueprint, such as aws-serverless")
 	pkg := fs.String("package", ".", "directory of the application's main package")
+	local := fs.Bool("local", false,
+		"also link what a local development session reads, rather than only what the target deploys with")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -86,7 +88,7 @@ func runGenerate(args []string) error {
 		return err
 	}
 
-	contents, err := GeneratePlatformFile(packageName, *target)
+	contents, err := GeneratePlatformFile(packageName, *target, GenerateOptions{Local: *local})
 	if err != nil {
 		return err
 	}

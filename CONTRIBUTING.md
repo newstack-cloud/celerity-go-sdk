@@ -93,6 +93,8 @@ and nothing finer.
 | `core` | `.` | `github.com/newstack-cloud/celerity-go-sdk` |
 | `serverless-aws` | `serverless/aws` | `.../serverless/aws` |
 | `resources-aws` | `resources/aws` | `.../resources/aws` |
+| `config-aws` | `config/aws` | `.../config/aws` |
+| `config-local` | `config/local` | `.../config/local` |
 | `cli` | `cmd/celerity-go` | `.../cmd/celerity-go` |
 | `deps` | — | dependency updates belonging to no module |
 
