@@ -164,11 +164,7 @@ func (s *Service) only() (Namespace, error) {
 // This is what a provider module calls, and why resources/aws doesn't need to
 // know about how a deployment names things.
 func (s *Service) Resource(ctx context.Context, kind, name string) (string, error) {
-	s.mu.RLock()
-	links := s.links
-	s.mu.RUnlock()
-
-	link, err := links.Find(kind, name)
+	key, err := s.ResourceKey(kind, name)
 	if err != nil {
 		return "", err
 	}
@@ -177,5 +173,26 @@ func (s *Service) Resource(ctx context.Context, kind, name string) (string, erro
 	if err != nil {
 		return "", err
 	}
-	return ns.Get(ctx, link.ConfigKey)
+	return ns.Get(ctx, key)
+}
+
+// ResourceKey returns the key in the resources namespace holding what the
+// deployment recorded about a resource.
+//
+// [Service.Resource] is the entirety of what most resources need, since one value
+// is all there is to know: a bucket is a name, a topic is an ARN. A cache or a
+// database is an endpoint, a port, a user and how to authenticate, and the
+// deploy engine writes each of those under this key with a suffix of its own.
+// A provider module reads them itself, because which of them exist and what
+// they mean is a property of the resource rather than of configuration.
+func (s *Service) ResourceKey(kind, name string) (string, error) {
+	s.mu.RLock()
+	links := s.links
+	s.mu.RUnlock()
+
+	link, err := links.Find(kind, name)
+	if err != nil {
+		return "", err
+	}
+	return link.ConfigKey, nil
 }

@@ -176,6 +176,18 @@ assuming.
 The runtime version is pinned in `.env.test`, so a runtime release cannot change
 what a test run means without the change being committed.
 
+The same run brings up what the provider modules read, a Valkey for the local
+config provider and the cache, a LocalStack instance for the AWS services, along with a Postgres instance
+and a MySQL instance for the RDS suite. RDS has no emulator, and what is worth covering
+there is the connection string, the pool and the driver seam rather than
+anything AWS does, all of which a real database handles. Both engines are included, because a
+connection string is built differently for each and nothing but a server
+refusing one says it was built wrongly.
+
+The drivers that suite imports are test dependencies, so applications still
+carry none, and they are also what pins the versions `celerity-go generate`
+writes imports of.
+
 ## Dependency updates
 
 Renovate raises version-update PRs; Dependabot is kept for security updates only. See [docs/RENOVATE.md](./docs/RENOVATE.md).

@@ -7,9 +7,9 @@ See [celerityframework.io](https://celerityframework.io) for the framework
 documentation.
 
 > **Status: early.** The protocol client, the registration API, the module
-> layout, configuration and the AWS Lambda adapter are in place. The resource
-> implementations and handler extraction are scaffolded and not yet
-> implemented.
+> layout, configuration, the AWS resource implementations and the AWS Lambda
+> adapter are in place. Handler extraction is scaffolded and not yet
+> implemented, and until it is, the Celerity CLI cannot build a Go application.
 
 ## Installing
 
@@ -141,6 +141,95 @@ err := cfg.Bind(ctx, &settings) // NAME, DATABASE_HOST, DATABASE_TIMEOUT
 Each level is punctuated with an underscore or a slash, whichever the store was
 written with, so a parameter store holding a hierarchy as a path and a secret
 holding compound keys read into the same struct.
+
+## Resources
+
+A handler reaches infrastructure through provider-agnostic interfaces, by the
+name the blueprint gave the resource:
+
+```go
+orders := resources.Datastore(app, "ordersTable")
+uploads := resources.Bucket(app, "uploadsBucket")
+```
+
+Buckets, queues, topics, document stores, caches and SQL databases each have an
+interface in `resources`, and a provider module implements them: `resources/aws`
+against S3, SQS, SNS, DynamoDB, ElastiCache and RDS.
+
+What the resource is actually called is decided when it is created, so a handle
+carries the blueprint name and resolves on first use, against the topology the
+Celerity CLI writes into the bundle and the identifiers the deploy engine
+records. Nothing is read while handles are being taken, so registration costs no
+requests and a resource an application declares but never reaches costs nothing
+at all.
+
+Handles are also what the extraction pass reads to work out which resources each
+handler reaches, and so which IAM grants it needs, which is why the name is
+expected to be a compile-time constant.
+
+A key that is not there is `resources.ErrNotFound`, whatever the store's own way
+of saying so:
+
+```go
+if errors.Is(err, resources.ErrNotFound) { ... }
+```
+
+### Listings
+
+A query or a bucket listing returns one page and an opaque cursor, which is what
+a handler hands a caller as the token for the next page:
+
+```go
+var page []Order
+cursor, err := orders.Query(ctx, resources.Query{
+    Partition: customerID,
+    Limit:     50,
+    Cursor:    req.Cursor,
+}, &page)
+```
+
+To read one through instead, range over it. Pages are fetched as they are
+needed, so breaking out early stops the fetching:
+
+```go
+for order, err := range resources.Items[Order](ctx, orders, resources.Query{
+    Partition: customerID,
+}) {
+    if err != nil {
+        return err
+    }
+    total += order.Total
+}
+```
+
+`resources.Objects` does the same for a bucket. Both are functions rather than
+methods because Go does not allow type parameters on methods, which is why
+registration is a function too.
+
+### Databases
+
+`database/sql` takes its driver from whatever the program imported, and the SDK doesn't import one as compiling every supported driver into every application that
+touches a platform would be a cost paid by applications with no database at all.
+
+Which one to import is a deployment fact rather than a decision for handler
+code, so the build writes it. `celerity-go generate` takes the engines off the
+blueprint's database resources, the same way it takes the deploy target, and
+links a driver for each:
+
+```bash
+celerity-go generate --target aws-serverless --sql-engine postgres
+```
+
+An application with no database carries no driver, and one with two engines
+carries both. Nothing is imported by hand, and retargeting or changing engine is
+a blueprint edit rather than a source edit.
+
+To use a driver other than the one chosen for you, name it:
+`--sql-engine postgres=github.com/lib/pq`.
+
+`Writer` and `Reader` hand out connections from separate pools, so a read does
+not occupy the writer. A deployment with no replica gives both from the same
+endpoint, which a handler does not have to know about.
 
 ## Where it runs
 

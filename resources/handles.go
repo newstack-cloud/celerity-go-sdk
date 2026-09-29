@@ -1,6 +1,16 @@
 package resources
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/newstack-cloud/celerity-go-sdk/config"
+	"github.com/newstack-cloud/celerity-go-sdk/resources/bucket"
+	"github.com/newstack-cloud/celerity-go-sdk/resources/cache"
+	"github.com/newstack-cloud/celerity-go-sdk/resources/datastore"
+	"github.com/newstack-cloud/celerity-go-sdk/resources/queue"
+	"github.com/newstack-cloud/celerity-go-sdk/resources/sqldb"
+	"github.com/newstack-cloud/celerity-go-sdk/resources/topic"
+)
 
 // Provider builds resource clients for one platform.
 //
@@ -8,12 +18,12 @@ import "fmt"
 // supplied to the application at startup, so core never imports a cloud SDK.
 type Provider interface {
 	Name() string
-	Bucket(name string) (BucketStore, error)
-	Queue(name string) (QueueClient, error)
-	Topic(name string) (TopicClient, error)
-	Cache(name string) (CacheClient, error)
-	Datastore(name string) (DatastoreClient, error)
-	SQLDatabase(name string) (SQLDatabaseClient, error)
+	Bucket(Ref) (bucket.Store, error)
+	Queue(Ref) (queue.Client, error)
+	Topic(Ref) (topic.Client, error)
+	Cache(Ref) (cache.Client, error)
+	Datastore(Ref) (datastore.Client, error)
+	SQLDatabase(Ref) (sqldb.Client, error)
 }
 
 // Host is the part of an application a resource handle needs.
@@ -25,6 +35,11 @@ type Host interface {
 	// explicitly, and nil when it was given none, which is the ordinary case:
 	// the provider is normally the linked one.
 	ResourceProvider() Provider
+	// Config is what the deployment recorded about the application, which is
+	// where a blueprint name is resolved to the identifier the resource was
+	// created under. Passed on to the provider through a [Ref] rather than read
+	// here, nothing is resolved while handles are being taken.
+	Config() *config.Service
 	// RecordResourceRef notes that the application reaches a resource, which is
 	// reported by the manifest and cross-checked against the static extraction
 	// pass.
@@ -57,51 +72,51 @@ func providerFor(host Host) Provider {
 //
 // Called with no name it refers to the only bucket the blueprint declares,
 // which the CLI resolves.
-func Bucket(host Host, name ...string) BucketStore {
-	return resolve(host, KindBucket, name, func(p Provider, n string) (BucketStore, error) {
-		return p.Bucket(n)
+func Bucket(host Host, name ...string) bucket.Store {
+	return resolve(host, KindBucket, name, func(p Provider, r Ref) (bucket.Store, error) {
+		return p.Bucket(r)
 	})
 }
 
 // Queue returns a handle to a blueprint queue resource.
-func Queue(host Host, name ...string) QueueClient {
-	return resolve(host, KindQueue, name, func(p Provider, n string) (QueueClient, error) {
-		return p.Queue(n)
+func Queue(host Host, name ...string) queue.Client {
+	return resolve(host, KindQueue, name, func(p Provider, r Ref) (queue.Client, error) {
+		return p.Queue(r)
 	})
 }
 
 // Topic returns a handle to a blueprint topic resource.
-func Topic(host Host, name ...string) TopicClient {
-	return resolve(host, KindTopic, name, func(p Provider, n string) (TopicClient, error) {
-		return p.Topic(n)
+func Topic(host Host, name ...string) topic.Client {
+	return resolve(host, KindTopic, name, func(p Provider, r Ref) (topic.Client, error) {
+		return p.Topic(r)
 	})
 }
 
 // Cache returns a handle to a blueprint cache resource.
-func Cache(host Host, name ...string) CacheClient {
-	return resolve(host, KindCache, name, func(p Provider, n string) (CacheClient, error) {
-		return p.Cache(n)
+func Cache(host Host, name ...string) cache.Client {
+	return resolve(host, KindCache, name, func(p Provider, r Ref) (cache.Client, error) {
+		return p.Cache(r)
 	})
 }
 
 // Datastore returns a handle to a blueprint data store resource.
-func Datastore(host Host, name ...string) DatastoreClient {
-	return resolve(host, KindDatastore, name, func(p Provider, n string) (DatastoreClient, error) {
-		return p.Datastore(n)
+func Datastore(host Host, name ...string) datastore.Client {
+	return resolve(host, KindDatastore, name, func(p Provider, r Ref) (datastore.Client, error) {
+		return p.Datastore(r)
 	})
 }
 
 // SQLDatabase returns a handle to a blueprint SQL database resource.
-func SQLDatabase(host Host, name ...string) SQLDatabaseClient {
-	return resolve(host, KindSQLDatabase, name, func(p Provider, n string) (SQLDatabaseClient, error) {
-		return p.SQLDatabase(n)
+func SQLDatabase(host Host, name ...string) sqldb.Client {
+	return resolve(host, KindSQLDatabase, name, func(p Provider, r Ref) (sqldb.Client, error) {
+		return p.SQLDatabase(r)
 	})
 }
 
 // resolve records the reference, then builds the client. The reference is
-// recorded whether or not a provider can be found: extraction runs with none
+// recorded whether or not a provider can be found as extraction runs with none
 // linked, and the reference is the point of that run.
-func resolve[T any](host Host, kind Kind, name []string, build func(Provider, string) (T, error)) T {
+func resolve[T any](host Host, kind Kind, name []string, build func(Provider, Ref) (T, error)) T {
 	var zero T
 	resolved := DefaultName
 	if len(name) > 0 && name[0] != "" {
@@ -121,9 +136,10 @@ func resolve[T any](host Host, kind Kind, name []string, build func(Provider, st
 		return zero
 	}
 
-	client, err := build(provider, resolved)
+	ref := Ref{Kind: kind, Name: resolved, Config: host.Config()}
+	client, err := build(provider, ref)
 	if err != nil {
-		host.ResourceError(fmt.Errorf("building %s %q: %w", kind, resolved, err))
+		host.ResourceError(fmt.Errorf("building %s: %w", ref, err))
 		return zero
 	}
 	return client
