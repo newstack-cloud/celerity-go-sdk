@@ -1,5 +1,19 @@
 package datastore
 
+import "errors"
+
+// ErrInvalidCondition is a condition the store cannot check, which is what a
+// [Condition] or a [SortCondition] built as a struct literal rather than by one
+// of the functions here produces.
+//
+// An application error rather than a runtime condition, so it is reported before
+// a request is made:
+//
+//	if errors.Is(err, datastore.ErrInvalidCondition) { ... }
+//
+// Sibling of [ErrInvalidUpdate], which is the same mistake made with an update.
+var ErrInvalidCondition = errors.New("celerity: invalid condition")
+
 // Operator is a test that a condition applies.
 type Operator string
 

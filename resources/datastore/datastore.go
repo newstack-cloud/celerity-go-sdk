@@ -44,6 +44,20 @@ var ErrConditionFailed = errors.New("celerity: condition not met")
 // precondition the caller asked for would be worse than failing.
 var ErrInvalidRevision = errors.New("celerity: revision did not come from a read")
 
+// ErrInvalidCursor is a cursor the store did not produce, passed to
+// [Query.Cursor] or [Scan.Cursor].
+//
+// A cursor is the one input here that can be shaped externally, a handler hands one to a
+// client and takes it back on the next request. So this is what a client sent
+// rather than something the application got wrong, and a handler mapping errors
+// to a response should answer it the way it answers any other bad request:
+//
+//	if errors.Is(err, datastore.ErrInvalidCursor) { ... }
+//
+// Reported whether the cursor is malformed or merely does not belong to the
+// query it was given to, since both are a client having edited one.
+var ErrInvalidCursor = errors.New("celerity: cursor did not come from this store")
+
 // Client is a NoSQL document store (e.g. DynamoDB, Firestore, Cosmos DB).
 type Client interface {
 	// Get fills out with the item under the key and returns its revision, for

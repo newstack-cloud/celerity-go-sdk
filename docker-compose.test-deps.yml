@@ -59,7 +59,9 @@ services:
   localstack:
     image: localstack/localstack:4.14
     ports:
-      - "${CELERITY_TEST_LOCALSTACK_PORT:-4566}:4566"
+      # Fixed, because the suites' default endpoint is this port. An emulator
+      # somewhere else is reached by setting CELERITY_TEST_AWS_ENDPOINT.
+      - "4566:4566"
     environment:
       SERVICES: ssm,secretsmanager,s3,sqs,sns,dynamodb
       DEBUG: 0
