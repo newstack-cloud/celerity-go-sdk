@@ -1,7 +1,7 @@
 //go:build integration
 
-// The AWS backends against the services they call, emulated by LocalStack, as
-// the other SDKs test theirs.
+// The AWS backends against the services they call, which is an emulator on the
+// machine running the tests unless the environment points the suite elsewhere.
 //
 // What the suite alongside this cannot establish: that a request is shaped the
 // way the service expects. A stand-in agrees with whatever this package sends
@@ -15,6 +15,7 @@ package aws_test
 import (
 	"context"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 
 type AWSIntegrationTestSuite struct {
 	suite.Suite
+	target  target
 	ssm     *ssm.Client
 	secrets *secretsmanager.Client
 }
@@ -40,15 +42,51 @@ func TestAWSIntegrationTestSuite(t *testing.T) {
 	suite.Run(t, new(AWSIntegrationTestSuite))
 }
 
-func endpoint() string {
-	if url := os.Getenv("CELERITY_TEST_LOCALSTACK_URL"); url != "" {
-		return url
+// Where this run points, on the same environment contract the resource module's
+// suites read. A copy rather than a shared helper because that helper lives in
+// the resources module, which this one does not depend on and should not start
+// depending on for a test.
+type target struct {
+	endpoint string
+	region   string
+	emulator bool
+}
+
+func targetFromEnv() target {
+	t := target{
+		endpoint: os.Getenv("CELERITY_TEST_AWS_ENDPOINT"),
+		region:   os.Getenv("CELERITY_TEST_AWS_REGION"),
+		emulator: emulatorMode(),
 	}
-	port := os.Getenv("CELERITY_TEST_LOCALSTACK_PORT")
-	if port == "" {
-		port = "4566"
+	if t.region == "" {
+		t.region = "eu-west-2"
 	}
-	return "http://127.0.0.1:" + port
+	if t.emulator && t.endpoint == "" {
+		t.endpoint = "http://127.0.0.1:4566"
+	}
+	return t
+}
+
+// An unset or unreadable value is an emulator, because the mistake worth
+// preventing is a suite writing parameters into an account that nobody meant it
+// to reach, not one failing to.
+func emulatorMode() bool {
+	raw := os.Getenv("CELERITY_TEST_AWS_EMULATOR")
+	if raw == "" {
+		return true
+	}
+	on, err := strconv.ParseBool(raw)
+	if err != nil {
+		return true
+	}
+	return on
+}
+
+func (t target) String() string {
+	if t.endpoint != "" {
+		return t.endpoint
+	}
+	return "the " + t.region + " region"
 }
 
 // SetupSuite points the SDK at LocalStack and seeds the stores.
@@ -58,27 +96,41 @@ func endpoint() string {
 // here is what makes the suite exercise that path rather than one built for
 // the test.
 func (s *AWSIntegrationTestSuite) SetupSuite() {
-	s.T().Setenv("AWS_ENDPOINT_URL", endpoint())
-	s.T().Setenv("AWS_REGION", "eu-west-2")
-	s.T().Setenv("AWS_ACCESS_KEY_ID", "test")
-	s.T().Setenv("AWS_SECRET_ACCESS_KEY", "test")
+	s.target = targetFromEnv()
+	s.T().Setenv("AWS_REGION", s.target.region)
+
+	options := []func(*awssdkconfig.LoadOptions) error{
+		awssdkconfig.WithRegion(s.target.region),
+	}
+	if s.target.endpoint != "" {
+		s.T().Setenv("AWS_ENDPOINT_URL", s.target.endpoint)
+		options = append(options, awssdkconfig.WithBaseEndpoint(s.target.endpoint))
+	}
+	if s.target.emulator {
+		// An emulator checks that a request was signed and not who signed it,
+		// so the credential is invented here. Clearing the session token as
+		// well, because one left in the environment would otherwise be paired
+		// with these and rejected.
+		s.T().Setenv("AWS_ACCESS_KEY_ID", "test")
+		s.T().Setenv("AWS_SECRET_ACCESS_KEY", "test")
+		s.T().Setenv("AWS_SESSION_TOKEN", "")
+		options = append(options, awssdkconfig.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider("test", "test", "")))
+	}
+	// Against an account the credentials are left to the default chain, which
+	// is the profile, the environment or the role the runner assumed.
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	cfg, err := awssdkconfig.LoadDefaultConfig(ctx,
-		awssdkconfig.WithRegion("eu-west-2"),
-		awssdkconfig.WithBaseEndpoint(endpoint()),
-		awssdkconfig.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider("test", "test", "")),
-	)
+	cfg, err := awssdkconfig.LoadDefaultConfig(ctx, options...)
 	s.Require().NoError(err)
 
 	s.ssm = ssm.NewFromConfig(cfg)
 	s.secrets = secretsmanager.NewFromConfig(cfg)
 
 	if _, err := s.ssm.DescribeParameters(ctx, &ssm.DescribeParametersInput{}); err != nil {
-		s.T().Skipf("no LocalStack at %s: %v", endpoint(), err)
+		s.T().Skipf("AWS is not reachable at %s: %v", s.target, err)
 	}
 
 	s.seedParameters(ctx)
