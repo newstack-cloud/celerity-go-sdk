@@ -9,10 +9,7 @@
 // resources/aws.
 package topic
 
-import (
-	"context"
-	"time"
-)
+import "context"
 
 // Client is publish-subscribe (e.g. SNS, Pub/Sub, Service Bus Topics).
 type Client interface {
@@ -38,11 +35,7 @@ type Client interface {
 type SendOption func(*SendOptions)
 
 // SendOptions is the resolved configuration for a publish.
-//
-// A delay is a queue's idea rather than a topic's, so a provider that cannot
-// honour one on a publish reports it rather than ignoring it.
 type SendOptions struct {
-	Delay      time.Duration
 	Attributes map[string]string
 	// GroupID orders messages within a group on topics that support it.
 	GroupID string
