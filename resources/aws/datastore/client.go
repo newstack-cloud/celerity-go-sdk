@@ -44,11 +44,11 @@ type API interface {
 	DescribeTable(context.Context, *dynamodb.DescribeTableInput, ...func(*dynamodb.Options)) (*dynamodb.DescribeTableOutput, error)
 }
 
-// stores builds data store handles for one provider, sharing a single DynamoDB
-// client between them.
+// stores builds data store handles for one provider, sharing a DynamoDB client
+// per region between them.
 type stores struct {
 	session *service.Session
-	client  service.Lazy[API]
+	clients service.Clients[API]
 
 	// api is a test's stand-in, and nil everywhere else.
 	api API
@@ -62,13 +62,13 @@ func (s *stores) build(ref resources.Ref) (datastore.Client, error) {
 	return &dynamoStore{stores: s, ref: ref}, nil
 }
 
-func (s *stores) dynamo(ctx context.Context) (API, error) {
+func (s *stores) dynamo(ctx context.Context, key service.ClientKey) (API, error) {
 	if s.api != nil {
 		return s.api, nil
 	}
 
-	return s.client.Get(func() (API, error) {
-		cfg, err := s.session.Config(ctx)
+	return s.clients.Get(ctx, key, func() (API, error) {
+		cfg, err := s.session.ConfigFor(ctx, key.Region)
 		if err != nil {
 			return nil, err
 		}

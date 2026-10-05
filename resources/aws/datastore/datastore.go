@@ -12,6 +12,7 @@ import (
 	dynamotypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"github.com/newstack-cloud/celerity-go-sdk/resources"
+	"github.com/newstack-cloud/celerity-go-sdk/resources/aws/internal/service"
 	"github.com/newstack-cloud/celerity-go-sdk/resources/datastore"
 )
 
@@ -291,7 +292,11 @@ func (d *dynamoStore) resolve(ctx context.Context) (API, string, *tableSchema, e
 	if err != nil {
 		return nil, "", nil, err
 	}
-	client, err := d.stores.dynamo(ctx)
+	key, err := service.KeyFor(ctx, d.ref)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	client, err := d.stores.dynamo(ctx, key)
 	if err != nil {
 		return nil, "", nil, err
 	}
