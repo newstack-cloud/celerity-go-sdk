@@ -16,10 +16,8 @@ const RevisionField = "_celerity_rev"
 // it came from, for the item it was read from. Do not persist one, pass one
 // between handlers, or use one obtained from a different data store.
 //
-// The zero Revision did not come from a read and is refused by [IfUnchanged].
-// That is deliberate, as without it, a variable that was never assigned would turn
-// a concurrency check into no check at all, which is the one failure mode that
-// would never be noticed.
+// The zero Revision does not come from a read, and is refused by [IfUnchanged]
+// rather than writing without the precondition that was asked for.
 type Revision struct {
 	value string
 	known bool

@@ -20,17 +20,11 @@ import (
 // stopping early stops the fetching, so a loop that breaks on the first match
 // pays for one page rather than for the whole partition.
 //
-// A package-level function rather than a method on the store because an
-// interface method cannot be generic. Go 1.27 allows a method to declare its own
-// type parameters, but not on an interface.
-//
-// A failure is yielded once, with the zero item, and ends the iteration. A
-// handler that ignores it would otherwise read a partial listing as a complete
-// one, which is the mistake this shape is trying to make hard.
+// A failure is yielded once, with the zero item, and ends the iteration.
 //
 // Where a handler is paging for a caller rather than reading to the end, it
-// wants [Client.Query] itself: that returns one page and the cursor to hand
-// back, which is what a paged API is built out of.
+// wants [Client.Query] itself, which returns one page and the cursor to hand
+// back.
 func Items[T any](ctx context.Context, store Client, q Query) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		var zero T

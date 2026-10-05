@@ -23,39 +23,36 @@ import (
 //
 //	if errors.Is(err, datastore.ErrNotFound) { ... }
 //
-// A delete of something that is not there does not fall under this.
-// Deleting is idempotent across all of the backing stores,
-// and reporting a key that was already gone as a failure would make a retry look like one.
+// Not used by a delete, which is idempotent on every backing store: a key that
+// holds nothing is not a failure.
 var ErrNotFound = errors.New("celerity: not found")
 
 // ErrConditionFailed reports that a conditional write was refused because the
 // item was not in the state the condition described.
 //
-// In many cases, this is not a failure so much as an answer:
-// it is what a handler doing a read, a decision and a write
-// is told when something else got there first, and the
+// Often an answer rather than a failure, it is what a handler doing a read, a
+// decision and a write is told when something else got there first, and the
 // ordinary response is to read again and retry.
 //
 //	if errors.Is(err, datastore.ErrConditionFailed) { ... }
 var ErrConditionFailed = errors.New("celerity: condition not met")
 
 // ErrInvalidRevision is a revision that did not come from a read, passed to
-// [IfUnchanged]. Reported before a request is made, since writing without the
-// precondition the caller asked for would be worse than failing.
+// [IfUnchanged]. Reported before a request is made, so no write happens without
+// the precondition that was asked for.
 var ErrInvalidRevision = errors.New("celerity: revision did not come from a read")
 
 // ErrInvalidCursor is a cursor the store did not produce, passed to
 // [Query.Cursor] or [Scan.Cursor].
 //
-// A cursor is the one input here that can be shaped externally, a handler hands one to a
-// client and takes it back on the next request. So this is what a client sent
-// rather than something the application got wrong, and a handler mapping errors
-// to a response should answer it the way it answers any other bad request:
+// A cursor travels out to a client and back, so this reports what a client sent
+// rather than something the application got wrong: a handler mapping errors to
+// a response should answer it as it answers any other bad request.
 //
 //	if errors.Is(err, datastore.ErrInvalidCursor) { ... }
 //
 // Reported whether the cursor is malformed or merely does not belong to the
-// query it was given to, since both are a client having edited one.
+// query it was given to.
 var ErrInvalidCursor = errors.New("celerity: cursor did not come from this store")
 
 // Client is a NoSQL document store (e.g. DynamoDB, Firestore, Cosmos DB).
@@ -65,12 +62,12 @@ type Client interface {
 	Get(ctx context.Context, key Key, out any) (Revision, error)
 	// Put writes an item, replacing whatever was under the key.
 	//
-	// [If] makes it conditional, which is what a handler that read, decided and
-	// is writing back needs: without one, two invocations running at the same
-	// time silently lose an update.
+	// [If] makes it conditional, which a handler that read, decided and is
+	// writing back needs. Without one, two invocations running at the same time
+	// silently lose an update.
 	//
-	// Put returns the item's new revision, so that a sequence of writes does
-	// not need a read between them.
+	// Returns the item's new revision, so a sequence of writes needs no read
+	// between them.
 	Put(ctx context.Context, key Key, item any, opts ...WriteOption) (Revision, error)
 	// Delete removes an item, and is idempotent. [If] makes it conditional.
 	Delete(ctx context.Context, key Key, opts ...WriteOption) error
@@ -96,9 +93,7 @@ type Client interface {
 	//
 	// Built with [Set], [Remove] and [Increment], at most [MaxUpdates] of them.
 	// The item has to be there: an update of a key that holds nothing reports
-	// [ErrNotFound] rather than creating it, so that the same code does not
-	// create a half-populated item on one store and report not-found on
-	// another. Use [Client.Put] to create.
+	// [ErrNotFound] rather than creating it. Use [Client.Put] to create.
 	//
 	// Preconditions apply as they do to a put, so an update can be partial and
 	// conditional in the same request.
@@ -109,15 +104,12 @@ type Client interface {
 	// This is not atomic. Some operations may succeed while others fail, on every
 	// store, so a caller that needs all or none cannot build it out of this.
 	//
-	// Puts and deletes only, and not because a batch of mutations would be
-	// unreasonable to want: The batch write implementation for some backing stores (such as DynamoDB)
-	// carry a put or a delete and has no update at all,
-	// where a transactional write might carry all three. To
-	// change part of each of many items, call [Client.Update] per item, or
-	// [Client.Atomically] where they share a partition and all-or-none is wanted
-	// as well.
+	// This only supports Puts and deletes. A batch write does not carry update on the stores this
+	// has to work on. To change part of each of many items, call [Client.Update]
+	// per item, or [Client.Atomically] where they share a partition and
+	// all-or-none is wanted as well.
 	//
-	// A [BatchOp] carries no preconditions for the same reason: no backing store takes
+	// A [BatchOp] carries no preconditions, for the same reason: no store takes
 	// one on a batch write.
 	BatchWrite(ctx context.Context, ops []BatchOp) ([]BatchOp, error)
 	// Atomically applies every operation or none of them.
@@ -127,15 +119,13 @@ type Client interface {
 	// precondition that does not hold refuses the whole write with
 	// [ErrConditionFailed] and nothing is applied.
 	//
-	// Every operation has to address the partition named here. The partition is
-	// a parameter rather than something inferred from the operations, so that
-	// the one-partition rule cannot be broken by accident: Cosmos DB's batch is
-	// scoped to a single logical partition, and a write that spanned two would
-	// work on DynamoDB and be refused there.
+	// Every operation has to address the partition named here, which is a
+	// parameter rather than inferred from the operations so that the
+	// one-partition rule cannot be broken by accident.
 	//
-	// There is no reading inside. DynamoDB and Cosmos DB both forbid it, and
-	// read-modify-write does not need it: take the revision from an earlier
-	// read and pass it as [IfUnchanged] on the operation that needs it.
+	// There is no reading inside. For read-modify-write, take the revision from
+	// an earlier read and pass it as [IfUnchanged] on the operation that needs
+	// it.
 	//
 	// Reports [ErrNotSupported] on a store with no multi-item transactions.
 	Atomically(ctx context.Context, partition string, ops []AtomicOp) error
@@ -143,9 +133,8 @@ type Client interface {
 
 // BatchOp is one operation in a batch write, built with [PutOp] or [DeleteOp].
 //
-// The fields are exported because a provider has to read one to translate it,
-// not because a caller should be filling them in: which of the two an operation
-// is cannot be set from outside, so an operation is never ambiguous.
+// The exported fields are there for a provider translating one to read. Which
+// of the two an operation is cannot be set from outside.
 type BatchOp struct {
 	// Key addresses the item the operation applies to.
 	Key Key
@@ -166,18 +155,16 @@ func DeleteOp(key Key) BatchOp {
 }
 
 // IsDelete reports which of the two an operation is, for a provider translating
-// one. A batch carries no conditions, so there is nothing else to ask.
+// one.
 func (o BatchOp) IsDelete() bool {
 	return o.remove
 }
 
 // Scan describes a read of the whole data store.
 //
-// Deliberately not a [Query] without a partition, a scan takes no sort
-// condition, since there is no partition to narrow, and names no index, since
-// three of the stores this has to work on have no index a query can name and
-// on a fourth the planner chooses. What is left is a filter, a projection and
-// where to resume.
+// Not a [Query] without a partition: a scan does not take a sort condition, since
+// there is no partition to narrow, and doesn't name a index. What is left is a
+// filter, a projection and where to resume.
 type Scan struct {
 	// Filter drops items that do not match a condition on their own fields.
 	// Nil applies none.
@@ -197,11 +184,10 @@ type Scan struct {
 
 // Cursor is a position in a listing, to resume it from.
 //
-// This is opaque, what is in one belongs to the store that produced it, and only that
-// store can read it back. It is a string so that a handler can hand it to a
-// client as the token for the next page and take it back on the next request,
-// which is the shape every paged API has and the reason a position cannot be a
-// key. Empty means a listing reached its end.
+// Thi is opaque, what is in one belongs to the store that produced it, and only that
+// store can read it back. A string, so a handler can hand it to a client as the
+// token for the next page and take it back on the next request. Empty means a
+// listing reached its end.
 type Cursor string
 
 // More reports whether a listing has more pages of items to retrieve.
@@ -237,9 +223,9 @@ type Query struct {
 	Index string
 	// Project lists the fields to return. Empty returns whole items.
 	//
-	// The key fields are always returned whether or not they are listed, since
-	// without them a returned item cannot be identified. Like a filter, this
-	// reduces what crosses the network rather than what the query costs.
+	// The key fields are always returned whether or not they are listed. Like a
+	// filter, this reduces what crosses the network rather than what the query
+	// costs.
 	Project []string
 	// Descending reads the partition from the end of the sort order rather than
 	// the start, which with a timestamp sort key is how the newest items are

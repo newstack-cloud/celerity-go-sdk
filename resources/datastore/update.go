@@ -4,14 +4,12 @@ import "errors"
 
 // MaxUpdates is the most mutations one update may carry.
 //
-// The ceiling is Cosmos DB's, whose patch takes ten operations, and it is
-// enforced by every provider so that an update which works on one store is not
-// refused on another. Exceeding it leads to [ErrTooManyOperations].
+// Enforced by every provider, so an update that works on one store is not
+// refused on another. Exceeding it reports [ErrTooManyOperations].
 const MaxUpdates = 10
 
 // ErrTooManyOperations is a request carrying more operations than the portable
-// ceiling allows. Reported before a request is made, since a store that would
-// have accepted it is the exception rather than the rule.
+// ceiling allows. Reported before a request is made.
 var ErrTooManyOperations = errors.New("celerity: too many operations in one request")
 
 // ErrInvalidUpdate is a mutation that doesn't name any fields, or names one
@@ -29,21 +27,18 @@ const (
 
 // Update is one mutation of an item, built with [Set], [Remove] or [Increment].
 //
-// The fields are exported because a provider has to read them to translate,
-// not because a caller should be filling them in.
+// The exported fields are there for a provider translating one to read.
 type Update struct {
 	Kind UpdateKind
 	// Path names the field, with a dot between the segments of a nested one:
 	// "status", or "profile.theme".
 	//
-	// Object fields only. An array element cannot be addressed, because
-	// some backing stores (such as Firestore) cannot update, insert or delete
-	// one by index at all, so a path that reached into an array
-	// would work on some stores and not others.
-	// To change an array, read the item and write it back with [IfUnchanged].
+	// Object fields only. An array element cannot be addressed, since not every
+	// store can change one by index. To change an array, read the item and
+	// write it back with [IfUnchanged].
 	//
-	// A field whose own name contains a dot is not addressable for the same
-	// reason a path is dotted: the two cannot be told apart.
+	// A field whose own name contains a dot is not addressable either: it
+	// cannot be told apart from a path.
 	Path string
 	// Value is what [Set] writes. Unused by the other two.
 	Value any

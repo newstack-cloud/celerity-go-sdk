@@ -5,10 +5,9 @@ import "reflect"
 // RevisionReceiver is implemented by an item type that wants the revision of
 // the item a read produced.
 //
-// [Client.Get] returns a revision directly, because it reads one item. A query,
-// a scan or a batch get read many, and a Go destination is a slice of the
-// application's own type with nowhere to put a second value per element. So an
-// item type that intends to write back what it read says so:
+// [Client.Get] returns a revision directly. A query, a scan or a batch get read
+// many items into a slice, which has nowhere to put a second value per element,
+// so an item type that intends to write back what it read says so:
 //
 //	type Order struct {
 //	    Total int `json:"total"`
@@ -35,9 +34,7 @@ var revisionReceiver = reflect.TypeFor[RevisionReceiver]()
 // just filled a destination from a read of many items. Revisions are in the
 // order the items were read.
 //
-// This does nothing unless the item type implements [RevisionReceiver], so an
-// application that never writes back what it queried pays one type check for
-// the call rather than one per item.
+// Does nothing unless the item type implements [RevisionReceiver].
 func DeliverRevisions(out any, revisions []Revision) {
 	if len(revisions) == 0 {
 		return

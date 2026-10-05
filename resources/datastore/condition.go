@@ -28,8 +28,7 @@ const (
 	OpStartsWith     Operator = "startsWith"
 	OpContains       Operator = "contains"
 	OpExists         Operator = "exists"
-	// OpNotExists is what an insert that must not overwrite is written as, so
-	// it is here rather than left to each provider.
+	// OpNotExists is what an insert that must not overwrite is written as.
 	OpNotExists Operator = "notExists"
 
 	// The two that combine conditions rather than test an attribute.
@@ -40,39 +39,31 @@ const (
 // Condition is a test on an item, for a write that should only happen if the
 // item is in a particular state as well as queries.
 //
-// Built with the functions below rather than by hand. The fields are exported
-// because a provider module has to read one to translate it, not because a
-// caller should be constructing them by hand, an example of using the functions would be:
+// Built with the functions below rather than by hand:
 //
 //	resources.All(
 //	    resources.Eq("status", "open"),
 //	    resources.Gt("version", 3),
 //	)
 //
-// Only operators every one of the supported backing stores can do are here.
-// A store's own are reached through its provider package,
-// which is where something that does not port belongs.
+// The exported fields are there for a provider translating one to read. Only
+// operators every supported store can do are here; a store's own are reached
+// through its provider package.
 //
 // # What a condition costs
 //
-// The meaning of these ports everywhere. What they cost does not, and it is
-// worth knowing which is which before a hot path depends on one.
+// The meaning of these ports everywhere. What they cost does not, which is
+// worth knowing before a hot path depends on one.
 //
-// [Exists] and [NotExists] are a precondition every one of the backing stores takes as
-// part of the write itself: attribute_exists on DynamoDB, an exists
-// precondition on Firestore, create rather than upsert on Cosmos DB. One
-// request, everywhere.
+// [Exists] and [NotExists] are a precondition every store takes as part of the
+// write itself, so they are one request everywhere. Testing an attribute's
+// value is one request on DynamoDB, which evaluates it server-side, and costs
+// an extra read on Firestore and Cosmos DB, neither of which has a condition on
+// properties.
 //
-// Testing an attribute's value is one request on DynamoDB, which evaluates the
-// condition server-side. Firestore has no such precondition, only exists and a
-// last-written time, so a provider there has to read the document inside a
-// transaction and decide; Cosmos DB has no condition on properties either, and
-// gets there by reading the item for its ETag and replacing with if-match.
-// Both are correct and both cost a read the AWS provider does not.
-//
-// So an insert that must not overwrite is free to write portably. An optimistic
-// update is not, and a store keeping a version attribute for the purpose is
-// worth it either way, since it is what the extra read compares.
+// So an insert that must not overwrite is portable and free. An optimistic
+// update is not: prefer [IfUnchanged], which is one request per step
+// everywhere.
 type Condition struct {
 	// Op is the test. Always set; a zero Condition is refused by the provider
 	// rather than quietly matching everything.
@@ -164,17 +155,13 @@ func Any(conditions ...Condition) Condition {
 
 // SortCondition narrows a query to part of a partition.
 //
-// Every one of the backing stores can do all of these: DynamoDB in its key condition,
-// Cosmos DB in a where clause with its own starts-with, Firestore in range
-// filters, where a prefix is the range between it and its own upper bound. So a
-// query that reads part of a partition reads part of one everywhere, and this is
-// the cheaper half of the two condition types.
+// Every store can do all of these, so a query that reads part of a partition
+// reads part of one everywhere. This is the cheaper of the two condition types.
 //
-// Separate from [Condition] and built by the Sort functions because it doesn't carry
-// attribute names: the attribute is the store's own sort key, which the store
-// knows and a handler should not have to repeat. It is also why the operators
-// are fewer, since a sort key is ordered and a test that is not about order
-// cannot use that order to read less.
+// Built by the Sort functions, and carries no attribute name: the attribute is
+// the store's own sort key. The operators are fewer than [Condition]'s because
+// a sort key is ordered, and a test that is not about order cannot use that
+// order to read less.
 //
 // Without one, a query reads a whole partition. With one it reads the part that
 // was asked for, which is the difference between a cost that grows with the
@@ -241,10 +228,10 @@ type WriteOptions struct {
 
 // If refuses a write unless the item is in the state described.
 //
-// This is what makes a read-then-write safe. Two invocations of a handler run
-// at the same time, and one that reads an item, decides, and writes has no way
-// to know the item did not change in between. A condition on the value it read
-// turns the lost update into [ErrConditionFailed], which the handler can retry.
+// This is what makes a read-then-write safe. A handler that reads an item, decides and
+// writes has no way of knowing the item did not change in between, and a
+// condition on the value it read turns the lost update into
+// [ErrConditionFailed], which it can retry.
 //
 //	err := orders.Put(ctx, key, updated, resources.If(resources.Eq("version", was)))
 func If(condition Condition) WriteOption {

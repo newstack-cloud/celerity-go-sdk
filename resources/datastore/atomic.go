@@ -4,17 +4,15 @@ import "errors"
 
 // MaxAtomicOps is the most operations one atomic write may carry.
 //
-// The ceiling is DynamoDB's and Cosmos DB's, which both stop at a hundred, and
-// it is enforced by every provider so that a write which works on one store is
-// not refused on another. Exceeding it is [ErrTooManyOperations].
+// Enforced by every provider, so a write that works on one store is not
+// refused on another. Exceeding it is [ErrTooManyOperations].
 const MaxAtomicOps = 100
 
 // ErrNotSupported is a capability the configured store does not have.
 //
-// The contract is the intersection of what these stores can do, so this is
-// rare. It exists for the one place the intersection is not clean: ScyllaDB
-// Alternator has single-item conditional writes and no multi-item transactions,
-// so an atomic write reports this there while every other store applies it.
+// Rare, since the contract is the intersection of what these stores can do.
+// [Client.Atomically] reports it on a store with single-item conditional writes
+// and no multi-item transactions, such as ScyllaDB Alternator.
 var ErrNotSupported = errors.New("celerity: not supported by this data store")
 
 // ErrWrongPartition is an operation in an atomic write addressing a partition
@@ -32,12 +30,9 @@ const (
 // AtomicOp is one operation in an atomic write, built with [AtomicPut],
 // [AtomicUpdate] or [AtomicDelete].
 //
-// Separate from [BatchOp] because the two differ in what they can carry: no
-// store takes a precondition on a batch write, and every store takes one on a
-// transactional write. Sharing a type would let a condition be set where it
-// would be silently ignored.
-//
-// The fields are exported because a provider has to read them to translate.
+// Unlike a [BatchOp] it carries preconditions, which is why the two are
+// separate types. The exported fields are there for a provider translating one
+// to read.
 type AtomicOp struct {
 	// Key addresses the item the operation applies to.
 	Key Key
