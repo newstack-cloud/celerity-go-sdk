@@ -7,8 +7,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/newstack-cloud/celerity-go-sdk/handler"
+	"github.com/newstack-cloud/celerity-go-sdk/resources"
 	"github.com/newstack-cloud/celerity-go-sdk/serverless"
 )
 
@@ -66,11 +68,43 @@ func RunContext(ctx context.Context, app *App) error {
 		if err != nil {
 			return err
 		}
+		// Nothing is released here. Returning from the event loop is not the end
+		// of the process: the environment freezes between invocations and may
+		// thaw for the next one, so a pool given back now is one that
+		// invocation has to rebuild.
+		//
+		// A shutdown is signalled separately, by SIGTERM, and releasing there
+		// would be safe since SIGTERM means the environment is going rather
+		// than freezing. What stops it being worth doing is the window: Lambda
+		// gives none at all to a function with no registered extension, 500ms
+		// with an internal one and 2s with an external one, against Cloud Run's
+		// ten seconds. A pool the process is about to drop anyway does not earn
+		// a share of that; buffered telemetry, which is lost rather than
+		// merely left open, is what does.
 		return serverless.Serve(ctx, adapter, app.Resolver())
 	default:
-		return app.serveRuntime(ctx)
+		err := app.serveRuntime(ctx)
+		return errors.Join(err, releaseResources(ctx))
 	}
 }
+
+// Gives back the connection pools the resource providers hold,
+// which is worth doing in a long-lived process being shut down and is where
+// this is the only moment it can happen.
+//
+// Given its own context, because the one that was serving is cancelled by the
+// signal that asked for the shutdown: a pool closed with a cancelled context
+// would be abandoned rather than drained.
+func releaseResources(parent context.Context) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), releaseTimeout)
+	defer cancel()
+	return resources.Release(ctx)
+}
+
+// releaseTimeout is how long shutdown waits for the pools to drain. Long enough
+// for a query in flight to finish, short enough not to hold up a container the
+// orchestrator will kill anyway.
+const releaseTimeout = 5 * time.Second
 
 // DetectMode reports how the process was asked to run.
 //

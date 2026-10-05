@@ -1,6 +1,8 @@
 package resources_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -32,6 +34,19 @@ type namedProvider struct {
 
 func (p *namedProvider) Name() string {
 	return p.name
+}
+
+// holdingProvider holds something worth giving back, which only providers with
+// a pool or a connection implement.
+type holdingProvider struct {
+	namedProvider
+	closed int
+	err    error
+}
+
+func (p *holdingProvider) Close(context.Context) error {
+	p.closed++
+	return p.err
 }
 
 // detectingProvider reports whether this is its platform, which only providers
@@ -110,4 +125,29 @@ func (s *RegistryTestSuite) Test_a_missing_provider_names_what_was_linked_instea
 	s.Require().Len(host.errs, 1)
 	s.Contains(host.errs[0].Error(), "More than one provider is linked")
 	s.Contains(host.errs[0].Error(), "azure, gcp")
+}
+
+func (s *RegistryTestSuite) Test_what_is_held_is_given_back_on_shutdown() {
+	holding := &holdingProvider{namedProvider: namedProvider{name: "aws"}}
+	resources.RegisterProvider(holding)
+
+	s.Require().NoError(resources.Release(context.Background()))
+
+	s.Equal(1, holding.closed)
+}
+
+func (s *RegistryTestSuite) Test_one_provider_failing_to_release_does_not_stop_the_rest() {
+	failing := &holdingProvider{
+		namedProvider: namedProvider{name: "aws"},
+		err:           errors.New("the pool would not drain"),
+	}
+	other := &holdingProvider{namedProvider: namedProvider{name: "gcp"}}
+	resources.RegisterProvider(failing)
+	resources.RegisterProvider(other)
+
+	err := resources.Release(context.Background())
+
+	s.Require().Error(err)
+	s.Contains(err.Error(), "would not drain")
+	s.Equal(1, other.closed, "the second should have been released too")
 }

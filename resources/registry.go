@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -11,10 +13,6 @@ import (
 // selects one by importing it rather than by constructing it:
 //
 //	import _ "github.com/newstack-cloud/celerity-go-sdk/resources/aws"
-//
-// The same reasoning as the serverless adapters: what platform an application
-// runs on is a deployment concern, and code that names it has to change when
-// the deployment does.
 
 var (
 	providerMu sync.RWMutex
@@ -71,6 +69,27 @@ func DetectedProvider() (Provider, bool) {
 	return nil, false
 }
 
+// FallbackProvider returns a linked provider other than the one named.
+//
+// What a provider serving only some of the resource kinds hands the rest to,
+// for example, a development session serves a queue and a topic
+// itself and delegates the other four to the platform's own provider.
+//
+// Reports false where nothing else is linked, which is a build that asked for a
+// development session without a platform to fall back to.
+func FallbackProvider(excluding string) (Provider, bool) {
+	providerMu.RLock()
+	defer providerMu.RUnlock()
+
+	for _, p := range providers {
+		if p.Name() != excluding {
+			return p, true
+		}
+	}
+
+	return nil, false
+}
+
 // MissingProviderError reports that a resource handle was taken but no provider
 // can build it.
 type MissingProviderError struct {
@@ -90,4 +109,42 @@ func (e *MissingProviderError) Error() string {
 		b.WriteString(strings.Join(e.Linked, ", "))
 	}
 	return b.String()
+}
+
+// Closer is a provider that holds something worth releasing when an application
+// stops: a connection pool, a client with a background goroutine.
+//
+// Optional, and asserted for rather than part of [Provider]: a bucket and a
+// queue are HTTP clients a process can simply stop using, where a database's
+// open connections and a cache's sockets are worth giving back.
+type Closer interface {
+	Close(ctx context.Context) error
+}
+
+// Release gives back what the linked providers hold.
+//
+// Called by [celerity.Run] when serving ends, so an application does not have
+// to. Providers that hold nothing are skipped, and a provider that fails to
+// release is reported without stopping the rest.
+//
+// Nothing calls this on a serverless platform, where an execution environment
+// is frozen between invocations and torn down without warning rather than
+// shut down. A pool there is given up with the environment.
+func Release(ctx context.Context) error {
+	providerMu.RLock()
+	holders := make([]Closer, 0, len(providers))
+	for _, p := range providers {
+		if closer, ok := p.(Closer); ok {
+			holders = append(holders, closer)
+		}
+	}
+	providerMu.RUnlock()
+
+	var errs []error
+	for _, holder := range holders {
+		if err := holder.Close(ctx); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }

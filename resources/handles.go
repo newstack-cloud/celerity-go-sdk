@@ -37,22 +37,20 @@ type Host interface {
 	ResourceProvider() Provider
 	// Config is what the deployment recorded about the application, which is
 	// where a blueprint name is resolved to the identifier the resource was
-	// created under. Passed on to the provider through a [Ref] rather than read
-	// here, nothing is resolved while handles are being taken.
+	// created under. Passed to the provider in a [Ref] rather than read here,
+	// so nothing is resolved while handles are being taken.
 	Config() *config.Service
 	// RecordResourceRef notes that the application reaches a resource, which is
 	// reported by the manifest and cross-checked against the static extraction
 	// pass.
 	RecordResourceRef(kind Kind, name string)
-	// ResourceError reports a resource that could not be built. Handles are
-	// taken during registration, where returning an error to every call site
-	// would drown the registration list, so errors are collected and reported
-	// together by celerity.Run.
+	// ResourceError reports a resource that could not be built. Errors are
+	// collected and reported together by celerity.Run rather than returned to
+	// each call site, since handles are taken during registration.
 	ResourceError(err error)
 	// Extracting reports that the process is describing itself for the CLI
-	// rather than serving. A missing provider is expected then: extraction wants
-	// the references, and building clients would need credentials on a machine
-	// that has no reason to hold any.
+	// rather than serving. A missing provider is expected then, since extraction
+	// wants the references rather than working clients.
 	Extracting() bool
 }
 

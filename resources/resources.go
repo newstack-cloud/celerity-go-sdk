@@ -19,8 +19,8 @@
 // is expected to be a compile-time constant.
 package resources
 
-// Kind names a resource type. It is the middle segment of a resource reference
-// and matches the vocabulary the other SDKs use in their DI tokens.
+// Kind names a resource type, and is the middle segment of a resource
+// reference.
 type Kind string
 
 const (
