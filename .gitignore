@@ -35,3 +35,6 @@ CLAUDE.md
 # Ignore the output binary of the test app but not its source code.
 testapp
 !tests/testapp
+
+# Ignore the output for the celerity-go (codegen) test app.
+cmd/celerity-go/testdata/app/app

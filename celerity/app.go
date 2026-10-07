@@ -13,6 +13,7 @@ package celerity
 
 import (
 	"errors"
+	"os"
 	"runtime"
 
 	"github.com/newstack-cloud/celerity-go-sdk/config"
@@ -101,6 +102,9 @@ func WithConfig(svc *config.Service) Option {
 
 // WithLogger replaces the logger handlers receive through
 // [telemetry.LoggerFrom].
+//
+// Without one an application writes through [telemetry.NewLogger]: JSON where
+// a log aggregator is reading, human-readable in a development session.
 func WithLogger(l telemetry.Logger) Option {
 	return func(o *options) { o.logger = l }
 }
@@ -115,6 +119,9 @@ func New(opts ...Option) *App {
 	}
 	for _, opt := range opts {
 		opt(&o)
+	}
+	if o.logger == nil {
+		o.logger = telemetry.NewLogger(os.Stderr, string(config.CurrentPlatform()))
 	}
 
 	app := &App{registry: NewRegistry(), options: o}
