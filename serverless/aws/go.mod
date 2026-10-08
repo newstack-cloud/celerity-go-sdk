@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-lambda-go v1.55.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.5
 	github.com/aws/aws-sdk-go-v2/service/apigatewaymanagementapi v1.37.0
-	github.com/newstack-cloud/celerity-go-sdk v0.0.0
+	github.com/newstack-cloud/celerity-go-sdk v0.1.0
 	github.com/stretchr/testify v1.12.1
 )
 
@@ -33,7 +33,6 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 )
 
-// Core is not published yet, so the module is resolved from the repository.
-// Dropped when core cuts its first release, after which this module requires a
-// version like any other consumer does.
+// Released in lock-step and resolved from the checkout. The directive is kept
+// after release, since a dependency's replace is ignored by whoever requires it.
 replace github.com/newstack-cloud/celerity-go-sdk => ../..

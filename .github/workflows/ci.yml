@@ -34,7 +34,7 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@1285a6a5ec1e0ebb658f49e82b6c566a878cc3cb
           go install github.com/wadey/gocovmerge@b5bfa59ec0adc420475f97f89b58045c721d761c
 
-      # buf is the only tool the protocol needs: it lints the contract, checks
+      # buf is the only tool the protocol needs. It lints the contract, checks
       # it for breaking changes and drives the code generation, with the plugins
       # resolved remotely and pinned in proto/buf.gen.yaml. Nothing else has to
       # be installed for the stubs to be reproducible.
@@ -104,3 +104,9 @@ jobs:
         env:
           GOWORK: "off"
         run: bash scripts/build.sh
+
+      # The replace directives mean a stale version here still builds, so
+      # nothing else catches it. The first thing it breaks is a consumer's
+      # build, once the modules are published.
+      - name: Check each module requires the version its sibling is released at
+        run: bash scripts/sync-module-versions.sh --check

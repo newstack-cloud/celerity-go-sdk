@@ -2,15 +2,12 @@ module github.com/newstack-cloud/celerity-go-sdk/resources/aws
 
 go 1.26.0
 
-// Core is not published yet, so the module is resolved from the repository.
-// Dropped when core cuts its first release, after which this module requires a
-// version like any other consumer does.
+// Released in lock-step and resolved from the checkout. The directive is kept
+// after release, since a dependency's replace is ignored by whoever requires it.
 replace github.com/newstack-cloud/celerity-go-sdk => ../..
 
-// The cache is one implementation for every platform, and this module supplies
-// only the credentials it reaches a managed cache with, so it depends on the
-// cache module rather than the other way round. Not published yet either, so
-// resolved from the repository the same way core is.
+// AWS supplies only the credentials a managed cache is reached with, so it
+// depends on the cache module rather than the other way round.
 replace github.com/newstack-cloud/celerity-go-sdk/resources/redis => ../redis
 
 require (
@@ -29,8 +26,8 @@ require (
 	github.com/aws/smithy-go v1.28.1
 	github.com/go-sql-driver/mysql v1.10.1
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/newstack-cloud/celerity-go-sdk v0.0.0
-	github.com/newstack-cloud/celerity-go-sdk/resources/redis v0.0.0-00010101000000-000000000000
+	github.com/newstack-cloud/celerity-go-sdk v0.1.0
+	github.com/newstack-cloud/celerity-go-sdk/resources/redis v0.1.0
 	github.com/stretchr/testify v1.12.1
 )
 

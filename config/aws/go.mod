@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.5
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.50.0
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.78.0
-	github.com/newstack-cloud/celerity-go-sdk v0.0.0
+	github.com/newstack-cloud/celerity-go-sdk v0.1.0
 	github.com/stretchr/testify v1.12.1
 )
 
@@ -27,7 +27,6 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 )
 
-// Core is not published yet, so the module is resolved from the repository.
-// Dropped when core cuts its first release, after which this module requires a
-// version like any other consumer does.
+// Released in lock-step and resolved from the checkout. The directive is kept
+// after release, since a dependency's replace is ignored by whoever requires it.
 replace github.com/newstack-cloud/celerity-go-sdk => ../..

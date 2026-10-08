@@ -1,7 +1,7 @@
 {
   "include-component-in-tag": true,
   "tag-separator": "/",
-  "separate-pull-requests": true,
+  "separate-pull-requests": false,
   "bump-minor-pre-major": true,
   "prerelease-type": "alpha",
   "changelog-sections": [
@@ -34,13 +34,16 @@
       "package-name": "celerity-go-sdk",
       "include-component-in-tag": false,
       "exclude-paths": [
+        "cmd/celerity-go",
         "config/aws",
         "config/local",
-        "serverless/aws",
-        "resources/redis",
-        "resources/local",
         "resources/aws",
-        "cmd/celerity-go"
+        "resources/local",
+        "resources/redis",
+        "resources/redis/otel",
+        "resources/sqldb/otel",
+        "serverless/aws",
+        "telemetry/otel"
       ]
     },
     "config/aws": {
@@ -80,18 +83,36 @@
     },
     "telemetry/otel": {
       "release-type": "go",
-      "component": "resources/redis",
-      "package-name": "resources-redis"
+      "component": "telemetry/otel",
+      "package-name": "telemetry-otel"
     },
     "resources/redis/otel": {
       "release-type": "go",
-      "component": "resources/redis",
-      "package-name": "resources-redis"
+      "component": "resources/redis/otel",
+      "package-name": "resources-redis-otel"
     },
     "resources/sqldb/otel": {
       "release-type": "go",
-      "component": "resources/redis",
-      "package-name": "resources-redis"
+      "component": "resources/sqldb/otel",
+      "package-name": "resources-sqldb-otel"
     }
-  }
+  },
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "groupName": "celerity-go-sdk",
+      "components": [
+        "config/aws",
+        "config/local",
+        "serverless/aws",
+        "resources/redis",
+        "resources/local",
+        "resources/aws",
+        "cmd/celerity-go",
+        "telemetry/otel",
+        "resources/redis/otel",
+        "resources/sqldb/otel"
+      ]
+    }
+  ]
 }

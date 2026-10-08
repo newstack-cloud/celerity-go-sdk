@@ -2,13 +2,12 @@ module github.com/newstack-cloud/celerity-go-sdk/cmd/celerity-go
 
 go 1.26.0
 
-// Core is not published yet, so the module is resolved from the repository.
-// Dropped when core cuts its first release, after which this module requires a
-// version like any other consumer does.
+// Released in lock-step and resolved from the checkout. The directive is kept
+// after release, since a dependency's replace is ignored by whoever requires it.
 replace github.com/newstack-cloud/celerity-go-sdk => ../..
 
 require (
-	github.com/newstack-cloud/celerity-go-sdk v0.0.0
+	github.com/newstack-cloud/celerity-go-sdk v0.1.0
 	github.com/stretchr/testify v1.12.1
 )
 
