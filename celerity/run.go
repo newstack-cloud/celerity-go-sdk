@@ -12,6 +12,7 @@ import (
 	"github.com/newstack-cloud/celerity-go-sdk/handler"
 	"github.com/newstack-cloud/celerity-go-sdk/resources"
 	"github.com/newstack-cloud/celerity-go-sdk/serverless"
+	"github.com/newstack-cloud/celerity-go-sdk/telemetry"
 )
 
 // Environment variables that decide how an application runs.
@@ -80,13 +81,29 @@ func RunContext(ctx context.Context, app *App) error {
 		// with an internal one and 2s with an external one, against Cloud Run's
 		// ten seconds. A pool the process is about to drop anyway does not earn
 		// a share of that; buffered telemetry, which is lost rather than
-		// merely left open, is what does.
+		// merely left open, is what does. So that is flushed per invocation,
+		// where there is a window by construction, rather than here.
 		return serverless.Serve(ctx, adapter, app.Resolver())
 	default:
 		err := app.serveRuntime(ctx)
-		return errors.Join(err, releaseResources(ctx))
+		return errors.Join(err, flushTelemetry(ctx), releaseResources(ctx))
 	}
 }
+
+// Hands over the telemetry held but not yet exported, which a process stopping
+// is the last chance to do, a batch of spans is held so that exporting is not a
+// request per span, and one still held when the process goes is one that
+// never gets exported.
+func flushTelemetry(parent context.Context) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), flushTimeout)
+	defer cancel()
+	return telemetry.Flush(ctx)
+}
+
+// How long a shutdown waits for the exporter, out of the same budget the pools
+// draw on. Shorter than theirs as a trace arriving late is worth less than a
+// query in flight finishing, and the platform gives a tight window for shutdown.
+const flushTimeout = 2 * time.Second
 
 // Gives back the connection pools the resource providers hold,
 // which is worth doing in a long-lived process being shut down and is where
