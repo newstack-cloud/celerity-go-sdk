@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/newstack-cloud/celerity-go-sdk/handler"
 	"github.com/newstack-cloud/celerity-go-sdk/telemetry"
@@ -58,6 +59,11 @@ type dispatcher struct {
 }
 
 func (d *dispatcher) invoke(ctx context.Context, payload []byte) (any, error) {
+	// We flush trace spans per invocation, because this is the only window there is,
+	// the environment is frozen when the event loop hands back and a batch of spans
+	// that have not yet been exported won't be sent otherwise.
+	defer flushTelemetry(ctx)
+
 	kind, err := d.mapper.Detect(payload)
 	if err != nil {
 		return nil, fmt.Errorf("detecting event source: %w", err)
@@ -181,3 +187,23 @@ func (d *dispatcher) acknowledgeReceipt(ctx context.Context, payload []byte) {
 		)
 	}
 }
+
+// Hands over the telemetry this invocation produced before the environment is
+// frozen, and says so rather than failing the invocation, a trace that did not
+// reach the collector is not a reason to answer an event with an error.
+//
+// Given a context of its own, since the invocation's may be at its deadline by
+// the time the handler has answered and a flush on a dead context doesn't
+// export anything.
+func flushTelemetry(parent context.Context) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), flushTimeout)
+	defer cancel()
+
+	if err := telemetry.Flush(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+	}
+}
+
+// How long an invocation waits for the exporter. Short, because this is on the
+// path of every response, a platform bills the wait and a caller waits it.
+const flushTimeout = 2 * time.Second
