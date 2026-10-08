@@ -392,7 +392,11 @@ func (s *CacheStub) Scan(ctx context.Context, opts ...cache.ScanOption) iter.Seq
 	if s.ScanFunc != nil {
 		return s.ScanFunc(ctx, opts...)
 	}
-	return nil
+	// Yielded rather than returned as a nil sequence, which is what every
+	// caller then panics on: a walk cannot answer with an error directly, so
+	// the one walk it has is the refusal.
+	err := notConfigured(s.name, "Scan")
+	return func(yield func(string, error) bool) { yield("", err) }
 }
 
 func (s *CacheStub) Set(ctx context.Context, key string, value string, opts ...cache.SetOption) (bool, error) {

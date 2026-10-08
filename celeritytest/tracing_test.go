@@ -254,8 +254,9 @@ func (s *TracingTestSuite) Test_a_conditional_write_says_that_it_was_one() {
 }
 
 func (s *TracingTestSuite) Test_a_generated_cache_operation_is_traced_like_the_rest() {
-	// The cache's wrapper is generated, so what is worth asserting is that a
-	// generated delegation reaches the right operation under the right name.
+	// Every operation's delegation is covered in the resources package, against
+	// the contract itself. What this adds is the path an application takes: a
+	// handle resolved through the provider, traced, and reaching the double.
 	res := celeritytest.Resources()
 	app := celerity.New(celerity.WithResourceProvider(res))
 	sessions := resources.Cache(app, "sessions")
