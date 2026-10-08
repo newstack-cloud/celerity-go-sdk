@@ -93,3 +93,68 @@ const (
 // Named here rather than in a provider module because the suffix is the deploy
 // engine's: it writes one shape for every language.
 const FieldRegion = "_region"
+
+// Reader reads the same fields and keeps the first failure, so that a caller
+// reading several of them reads them as a list rather than as a check after
+// every one.
+//
+// One unreadable value makes the whole resource unreachable, so there is
+// nothing to salvage from the rest: a read after a failure is skipped and
+// answers zero, and the caller discards what it gathered along with everything
+// else when it finds the error.
+func (f Fields) Reader() *Reader {
+	return &Reader{fields: f}
+}
+
+// Reader gathers field values and the first failure among them.
+//
+// Built with [Fields.Reader].
+type Reader struct {
+	fields Fields
+	err    error
+}
+
+// Required is [Fields.Required], and zero once something has failed.
+func (r *Reader) Required(ctx context.Context, suffix string) string {
+	if r.err != nil {
+		return ""
+	}
+	value, err := r.fields.Required(ctx, suffix)
+	r.err = err
+	return value
+}
+
+// Optional is [Fields.Optional], and zero once something has failed.
+func (r *Reader) Optional(ctx context.Context, suffix, fallback string) string {
+	if r.err != nil {
+		return ""
+	}
+	value, err := r.fields.Optional(ctx, suffix, fallback)
+	r.err = err
+	return value
+}
+
+// Number is [Fields.Number], and zero once something has failed.
+func (r *Reader) Number(ctx context.Context, suffix string, fallback int) int {
+	if r.err != nil {
+		return 0
+	}
+	value, err := r.fields.Number(ctx, suffix, fallback)
+	r.err = err
+	return value
+}
+
+// Boolean is [Fields.Boolean], and zero once something has failed.
+func (r *Reader) Boolean(ctx context.Context, suffix string, fallback bool) bool {
+	if r.err != nil {
+		return false
+	}
+	value, err := r.fields.Boolean(ctx, suffix, fallback)
+	r.err = err
+	return value
+}
+
+// Err is the first read that failed, and nil where none did.
+func (r *Reader) Err() error {
+	return r.err
+}
