@@ -50,23 +50,23 @@ func (d *rdsDatabase) readSettings(ctx context.Context) (connection, error) {
 
 // The values the deployment wrote under the resource's own key.
 func (d *rdsDatabase) readRecorded(ctx context.Context, f resources.Fields) (connection, error) {
-	r := fieldReader{fields: f}
+	r := f.Reader()
 	var c connection
 
-	c.host = r.required(ctx, "_host")
-	c.user = r.required(ctx, "_user")
-	c.engine = r.optional(ctx, "_engine", sqldb.EnginePostgres)
+	c.host = r.Required(ctx, "_host")
+	c.user = r.Required(ctx, "_user")
+	c.engine = r.Optional(ctx, "_engine", sqldb.EnginePostgres)
 	// After the engine, whose port it falls back to.
-	c.port = r.number(ctx, "_port", defaultPortFor(c.engine))
+	c.port = r.Number(ctx, "_port", defaultPortFor(c.engine))
 	// The blueprint's own name for the resource, where the deployment recorded
 	// no other, which is what a single-database cluster is created with.
-	c.database = r.optional(ctx, "_database", d.ref.Name)
-	c.readHost = r.optional(ctx, "_readHost", "")
-	c.authMode = r.optional(ctx, "_authMode", resources.AuthPassword)
-	c.region = r.optional(ctx, "_region", "")
-	c.ssl = r.boolean(ctx, "_ssl", true)
-	if r.err != nil {
-		return connection{}, r.err
+	c.database = r.Optional(ctx, "_database", d.ref.Name)
+	c.readHost = r.Optional(ctx, "_readHost", "")
+	c.authMode = r.Optional(ctx, "_authMode", resources.AuthPassword)
+	c.region = r.Optional(ctx, "_region", "")
+	c.ssl = r.Boolean(ctx, "_ssl", true)
+	if err := r.Err(); err != nil {
+		return connection{}, err
 	}
 
 	// IAM authentication is a signed token, which is a credential in its own
@@ -101,53 +101,6 @@ func (d *rdsDatabase) readPassword(
 	}
 
 	return service.PasswordIn(password, d.ref)
-}
-
-// Reads the values a connection is built from, holding the first failure so
-// that each read is a line rather than a line and a branch.
-//
-// A read after a failure is skipped and answers zero, which the caller discards
-// along with everything else it read: one unreadable value makes the whole
-// connection unreachable, so there is nothing to salvage from the rest.
-type fieldReader struct {
-	fields resources.Fields
-	err    error
-}
-
-func (r *fieldReader) required(ctx context.Context, suffix string) string {
-	if r.err != nil {
-		return ""
-	}
-	value, err := r.fields.Required(ctx, suffix)
-	r.err = err
-	return value
-}
-
-func (r *fieldReader) optional(ctx context.Context, suffix, fallback string) string {
-	if r.err != nil {
-		return ""
-	}
-	value, err := r.fields.Optional(ctx, suffix, fallback)
-	r.err = err
-	return value
-}
-
-func (r *fieldReader) number(ctx context.Context, suffix string, fallback int) int {
-	if r.err != nil {
-		return 0
-	}
-	value, err := r.fields.Number(ctx, suffix, fallback)
-	r.err = err
-	return value
-}
-
-func (r *fieldReader) boolean(ctx context.Context, suffix string, fallback bool) bool {
-	if r.err != nil {
-		return false
-	}
-	value, err := r.fields.Boolean(ctx, suffix, fallback)
-	r.err = err
-	return value
 }
 
 func defaultPortFor(engine string) int {
@@ -186,12 +139,12 @@ func (d *rdsDatabase) readPool(ctx context.Context, f resources.Fields) (poolSet
 		settings = lambdaPool
 	}
 
-	r := fieldReader{fields: f}
-	max := r.number(ctx, "_poolMax", settings.max)
-	idle := r.number(ctx, "_poolMin", settings.idle)
-	idleFor := r.number(ctx, "_poolIdleTimeoutMs", int(settings.idleFor.Milliseconds()))
-	if r.err != nil {
-		return poolSettings{}, r.err
+	r := f.Reader()
+	max := r.Number(ctx, "_poolMax", settings.max)
+	idle := r.Number(ctx, "_poolMin", settings.idle)
+	idleFor := r.Number(ctx, "_poolIdleTimeoutMs", int(settings.idleFor.Milliseconds()))
+	if err := r.Err(); err != nil {
+		return poolSettings{}, err
 	}
 
 	settings.max = max
