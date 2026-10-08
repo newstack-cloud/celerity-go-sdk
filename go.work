@@ -6,5 +6,10 @@ use (
 	./config/aws
 	./config/local
 	./resources/aws
+	./resources/local
+	./resources/redis
+	./resources/redis/otel
 	./serverless/aws
+	./resources/sqldb/otel
+	./telemetry/otel
 )

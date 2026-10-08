@@ -108,6 +108,10 @@ func (s *PlatformTestSuite) Test_a_deployment_does_not_link_what_only_a_session_
 
 			s.Require().NoError(err)
 			s.NotContains(got, LocalConfig)
+			s.NotContains(got, LocalResources,
+				"a deployment reaches a queue and a topic through the platform's own")
+			s.NotContains(got, LocalResourceBackend,
+				"and carries no Redis client for them")
 		})
 	}
 }
@@ -121,9 +125,15 @@ func (s *PlatformTestSuite) Test_a_local_session_links_what_it_reads_as_well() {
 
 			s.Require().NoError(err)
 			s.Contains(got, LocalConfig)
+			s.Contains(got, LocalResources,
+				"a session serves a queue and a topic itself, since SQS and SNS have no "+
+					"stand-in it can point an endpoint at")
+			s.Contains(got, LocalResourceBackend,
+				"and the backend that carries them has to be linked too")
 			s.Contains(got, "local development session",
 				"the file should say why it differs from a deployment's")
-			// And still everything the target itself needs.
+			// And still everything the target itself needs, since the local
+			// provider delegates every kind but those two to it.
 			s.Contains(got, "/resources/aws")
 		})
 	}
@@ -139,4 +149,239 @@ func (s *PlatformTestSuite) Test_an_import_is_never_written_for_a_package_that_d
 	s.Contains(got, "/serverless/aws")
 	s.Contains(got, "/resources/aws")
 	s.Contains(got, "/config/aws")
+}
+
+func (s *PlatformTestSuite) Test_an_engine_links_the_driver_that_serves_it() {
+	cases := []struct {
+		name         string
+		engines      []string
+		wantImports  []string
+		wantExcluded []string
+	}{
+		{
+			name:         "postgres",
+			engines:      []string{"postgres"},
+			wantImports:  []string{"github.com/jackc/pgx/v5/stdlib"},
+			wantExcluded: []string{"go-sql-driver/mysql"},
+		},
+		{
+			name:         "mysql",
+			engines:      []string{"mysql"},
+			wantImports:  []string{"github.com/go-sql-driver/mysql"},
+			wantExcluded: []string{"jackc/pgx"},
+		},
+		{
+			// A blueprint can declare a database of each, and the binary has
+			// to carry both.
+			name:    "both",
+			engines: []string{"postgres", "mysql"},
+			wantImports: []string{
+				"github.com/jackc/pgx/v5/stdlib",
+				"github.com/go-sql-driver/mysql",
+			},
+		},
+		{
+			// Two databases on one engine is one driver, not the same import
+			// written twice, which would not compile.
+			name:        "two databases on one engine",
+			engines:     []string{"postgres", "postgres"},
+			wantImports: []string{"github.com/jackc/pgx/v5/stdlib"},
+		},
+		{
+			// An application that wants a driver other than the one chosen for
+			// it says so, rather than having to give up on generating the file.
+			name:         "a driver named by the application",
+			engines:      []string{"postgres=github.com/lib/pq"},
+			wantImports:  []string{"github.com/lib/pq"},
+			wantExcluded: []string{"jackc/pgx"},
+		},
+	}
+
+	for _, tc := range cases {
+		s.Run(tc.name, func() {
+			got, err := GeneratePlatformFile("main", TargetAWSServerless, GenerateOptions{
+				SQLEngines: tc.engines,
+			})
+
+			s.Require().NoError(err)
+			for _, want := range tc.wantImports {
+				s.Contains(got, want)
+			}
+			for _, unwanted := range tc.wantExcluded {
+				s.NotContains(got, unwanted)
+			}
+			s.Equal(1, strings.Count(got, "import ("),
+				"the drivers belong in the one import block")
+		})
+	}
+}
+
+func (s *PlatformTestSuite) Test_an_application_with_no_database_carries_no_driver() {
+	// The ordinary case, and the whole reason the SDK imports neither driver
+	// itself.
+	got, err := GeneratePlatformFile("main", TargetAWSServerless, GenerateOptions{})
+
+	s.Require().NoError(err)
+	s.NotContains(got, "jackc/pgx")
+	s.NotContains(got, "go-sql-driver")
+}
+
+func (s *PlatformTestSuite) Test_an_engine_with_no_driver_is_refused_by_name() {
+	// Linking nothing would surface as a database that cannot be reached.
+	_, err := GeneratePlatformFile("main", TargetAWSServerless, GenerateOptions{
+		SQLEngines: []string{"oracle"},
+	})
+
+	s.Require().Error(err)
+	s.Contains(err.Error(), "oracle")
+	s.Contains(err.Error(), "postgres")
+	s.Contains(err.Error(), "mysql")
+}
+
+func (s *PlatformTestSuite) Test_the_drivers_are_set_apart_from_the_platform_packages() {
+	// They are linked because of what the application declares rather than
+	// because of where it is deployed, and a reader of the generated file
+	// should be able to tell which is which.
+	got, err := GeneratePlatformFile("main", TargetAWSServerless, GenerateOptions{
+		SQLEngines: []string{"postgres"},
+	})
+
+	s.Require().NoError(err)
+	platformPos := strings.Index(got, "/serverless/aws")
+	commentPos := strings.Index(got, "database drivers")
+	driverPos := strings.Index(got, "jackc/pgx")
+
+	s.Require().NotEqual(-1, commentPos, "the group should say what it is")
+	s.Less(platformPos, commentPos, "the platform packages come first")
+	s.Less(commentPos, driverPos)
+}
+
+func (s *PlatformTestSuite) Test_a_resource_kind_links_one_package_and_not_the_others() {
+	// A platform's resource module is a package per kind, so an application
+	// with a data store and nothing else should not carry a messaging client.
+	contents, err := GeneratePlatformFile("app", TargetAWSServerless, GenerateOptions{
+		Resources: []string{"datastore"},
+	})
+
+	s.Require().NoError(err)
+	s.Contains(contents, `_ "github.com/newstack-cloud/celerity-go-sdk/resources/aws/datastore"`)
+	s.NotContains(contents, "resources/aws/bucket")
+	s.NotContains(contents, "resources/aws/queue")
+	s.Contains(contents, `_ "github.com/newstack-cloud/celerity-go-sdk/resources/aws"`,
+		"the provider is linked whatever the kinds are")
+}
+
+func (s *PlatformTestSuite) Test_a_cache_links_the_redis_module_and_the_platforms_credentials() {
+	// Every managed cache speaks Redis, so the cache itself is one module for
+	// every target and the platform package contributes only the credentials.
+	contents, err := GeneratePlatformFile("app", TargetAWS, GenerateOptions{
+		Resources: []string{"cache"},
+	})
+
+	s.Require().NoError(err)
+	s.Contains(contents, `_ "github.com/newstack-cloud/celerity-go-sdk/resources/aws/cache"`)
+	s.Contains(contents, `_ "github.com/newstack-cloud/celerity-go-sdk/resources/redis"`)
+}
+
+func (s *PlatformTestSuite) Test_a_resource_kind_the_sdk_has_no_package_for_is_refused() {
+	_, err := GeneratePlatformFile("app", TargetAWS, GenerateOptions{
+		Resources: []string{"quantumStore"},
+	})
+
+	s.Require().Error(err)
+	var unknown *UnknownResourceError
+	s.Require().ErrorAs(err, &unknown)
+	s.Contains(err.Error(), "datastore", "the error lists what is supported")
+}
+
+func (s *PlatformTestSuite) Test_every_resource_kind_a_blueprint_can_declare_has_a_package() {
+	// The kinds a blueprint can declare, which the generated file has to be
+	// able to link one package for each of.
+	for _, kind := range []string{
+		"bucket", "queue", "topic", "cache", "datastore", "sqlDatabase",
+	} {
+		s.Run(kind, func() {
+			contents, err := GeneratePlatformFile("app", TargetAWS, GenerateOptions{
+				Resources: []string{kind},
+			})
+
+			s.Require().NoError(err)
+			s.Contains(contents, "resources/aws/")
+		})
+	}
+}
+
+func (s *PlatformTestSuite) Test_tracing_is_linked_because_the_blueprint_asked_for_it() {
+	contents, err := GeneratePlatformFile("main", TargetAWSServerless,
+		GenerateOptions{Telemetry: "otel"})
+
+	s.Require().NoError(err)
+	s.Contains(contents, `_ "github.com/newstack-cloud/celerity-go-sdk/telemetry/otel"`)
+}
+
+func (s *PlatformTestSuite) Test_an_application_asking_for_no_tracing_links_none() {
+	contents, err := GeneratePlatformFile("main", TargetAWSServerless,
+		GenerateOptions{})
+
+	s.Require().NoError(err)
+	s.NotContains(contents, "telemetry/otel",
+		"and still produces spans, which go to the seam's own tracer")
+}
+
+func (s *PlatformTestSuite) Test_an_unknown_telemetry_is_refused_by_name() {
+	_, err := GeneratePlatformFile("main", TargetAWSServerless,
+		GenerateOptions{Telemetry: "jaeger"})
+
+	s.Require().Error(err)
+	s.Contains(err.Error(), `unknown telemetry "jaeger"`)
+	s.Contains(err.Error(), "otel", "naming what it could have been")
+}
+
+func (s *PlatformTestSuite) Test_instrumentation_is_linked_per_backend_a_resource_reaches() {
+	// Per backend rather than wholesale, because each carries the
+	// instrumentation library for one, an application without a database should
+	// not link a SQL instrumentation.
+	cases := []struct {
+		name         string
+		resources    []string
+		wantImports  []string
+		wantExcluded []string
+	}{
+		{
+			name:         "a cache reaches Redis on every platform",
+			resources:    []string{"cache"},
+			wantImports:  []string{"resources/redis/otel"},
+			wantExcluded: []string{"resources/sqldb/otel"},
+		},
+		{
+			name:         "a database is reached through a SQL driver",
+			resources:    []string{"sqlDatabase"},
+			wantImports:  []string{"resources/sqldb/otel"},
+			wantExcluded: []string{"resources/redis/otel"},
+		},
+		{
+			// The AWS calls a bucket makes are traced by the provider itself,
+			// which needs nothing linked because it adds no dependency.
+			name:         "a bucket needs no instrumentation module",
+			resources:    []string{"bucket"},
+			wantExcluded: []string{"resources/redis/otel", "resources/sqldb/otel"},
+		},
+	}
+
+	for _, test := range cases {
+		s.Run(test.name, func() {
+			contents, err := GeneratePlatformFile("main", TargetAWSServerless, GenerateOptions{
+				Telemetry: "otel",
+				Resources: test.resources,
+			})
+
+			s.Require().NoError(err)
+			for _, want := range test.wantImports {
+				s.Contains(contents, want)
+			}
+			for _, unwanted := range test.wantExcluded {
+				s.NotContains(contents, unwanted)
+			}
+		})
+	}
 }
