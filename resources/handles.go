@@ -72,42 +72,66 @@ func providerFor(host Host) Provider {
 // which the CLI resolves.
 func Bucket(host Host, name ...string) bucket.Store {
 	return resolve(host, KindBucket, name, func(p Provider, r Ref) (bucket.Store, error) {
-		return p.Bucket(r)
+		store, err := p.Bucket(r)
+		if err != nil {
+			return nil, err
+		}
+		return tracedBucket{inner: store, ref: r}, nil
 	})
 }
 
 // Queue returns a handle to a blueprint queue resource.
 func Queue(host Host, name ...string) queue.Client {
 	return resolve(host, KindQueue, name, func(p Provider, r Ref) (queue.Client, error) {
-		return p.Queue(r)
+		client, err := p.Queue(r)
+		if err != nil {
+			return nil, err
+		}
+		return tracedQueue{inner: client, ref: r}, nil
 	})
 }
 
 // Topic returns a handle to a blueprint topic resource.
 func Topic(host Host, name ...string) topic.Client {
 	return resolve(host, KindTopic, name, func(p Provider, r Ref) (topic.Client, error) {
-		return p.Topic(r)
+		client, err := p.Topic(r)
+		if err != nil {
+			return nil, err
+		}
+		return tracedTopic{inner: client, ref: r}, nil
 	})
 }
 
 // Cache returns a handle to a blueprint cache resource.
 func Cache(host Host, name ...string) cache.Client {
 	return resolve(host, KindCache, name, func(p Provider, r Ref) (cache.Client, error) {
-		return p.Cache(r)
+		client, err := p.Cache(r)
+		if err != nil {
+			return nil, err
+		}
+		return tracedCache{inner: client, ref: r}, nil
 	})
 }
 
 // Datastore returns a handle to a blueprint data store resource.
 func Datastore(host Host, name ...string) datastore.Client {
 	return resolve(host, KindDatastore, name, func(p Provider, r Ref) (datastore.Client, error) {
-		return p.Datastore(r)
+		client, err := p.Datastore(r)
+		if err != nil {
+			return nil, err
+		}
+		return tracedDatastore{inner: client, ref: r}, nil
 	})
 }
 
 // SQLDatabase returns a handle to a blueprint SQL database resource.
 func SQLDatabase(host Host, name ...string) sqldb.Client {
 	return resolve(host, KindSQLDatabase, name, func(p Provider, r Ref) (sqldb.Client, error) {
-		return p.SQLDatabase(r)
+		client, err := p.SQLDatabase(r)
+		if err != nil {
+			return nil, err
+		}
+		return tracedDatabase{inner: client, ref: r}, nil
 	})
 }
 
