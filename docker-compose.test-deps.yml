@@ -47,7 +47,7 @@ services:
   # Published to the host as well, so the suite can put a message on a stream
   # and watch a Go handler receive it.
   valkey:
-    image: valkey/valkey:8.1.3
+    image: valkey/valkey:9.1.2
     ports:
       - "${CELERITY_TEST_VALKEY_PORT:-6379}:6379"
     healthcheck:
