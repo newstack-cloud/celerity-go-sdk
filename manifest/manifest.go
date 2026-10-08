@@ -51,8 +51,14 @@ type FunctionHandler struct {
 	// FuncPath is the fully qualified name of the registered function, such as
 	// github.com/acme/app/orders.Create. The extraction tool's static pass roots
 	// its resource walk here, which is what ties the analysis to the function
-	// the binary will actually dispatch to. Not part of the CLI's contract.
-	FuncPath string `json:"-"`
+	// the binary will actually dispatch to.
+	//
+	// Written when the binary reports itself, since that is how the static pass
+	// learns what to walk, and cleared again before the manifest is handed to
+	// the CLI: what each handler reaches is in the annotations by then, and the
+	// path is an implementation detail of how it got there rather than part of
+	// the contract.
+	FuncPath string `json:"funcPath,omitempty"`
 }
 
 // GuardHandler describes one registered auth guard.
