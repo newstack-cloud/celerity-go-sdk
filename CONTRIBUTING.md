@@ -93,6 +93,7 @@ and nothing finer.
 | `core` | `.` | `github.com/newstack-cloud/celerity-go-sdk` |
 | `serverless-aws` | `serverless/aws` | `.../serverless/aws` |
 | `resources-aws` | `resources/aws` | `.../resources/aws` |
+| `resources-redis` | `resources/redis` | `.../resources/redis` |
 | `config-aws` | `config/aws` | `.../config/aws` |
 | `config-local` | `config/local` | `.../config/local` |
 | `cli` | `cmd/celerity-go` | `.../cmd/celerity-go` |
@@ -176,8 +177,32 @@ assuming.
 The runtime version is pinned in `.env.test`, so a runtime release cannot change
 what a test run means without the change being committed.
 
+### Where the AWS suites point
+
+The AWS suites do not name an emulator. They read a target from the environment, so the
+same suites run against the emulator compose brings up or against an account:
+
+| Variable | Default | What it does |
+|---|---|---|
+| `CELERITY_TEST_AWS_EMULATOR` | `true` | Invents the credential an emulator does not check, and supplies the default endpoint. `false` leaves credentials to the SDK's default chain, so a profile or an assumed role |
+| `CELERITY_TEST_AWS_ENDPOINT` | `http://127.0.0.1:4566` when emulating, otherwise unset | Where the SDK is pointed. Unset against an account, so each service's own endpoint is resolved |
+| `CELERITY_TEST_AWS_REGION` | `eu-west-2` | The region clients are built for and signatures are scoped to |
+| `CELERITY_TEST_AWS_RESOURCE_PREFIX` | empty | Goes in front of every resource name a suite creates, so two runs sharing an account do not share a table |
+
+An unset or unreadable `CELERITY_TEST_AWS_EMULATOR` is an emulator, because the
+mistake worth preventing is a suite creating tables in an account nobody meant
+it to reach.
+
+The defaults live in `.env.test`, which `run-tests.sh` reads without overwriting
+anything already exported, so pointing a run elsewhere is a matter of exporting
+the variables above first.
+
+Against an account, set a prefix. The suites create the resource a deployment
+would have created and leave it, which is what makes a rerun cheap against an
+emulator and is why two unprefixed runs in one account would collide.
+
 The same run brings up what the provider modules read, a Valkey for the local
-config provider and the cache, a LocalStack instance for the AWS services, along with a Postgres instance
+config provider and the cache, an AWS emulator for the AWS services, along with a Postgres instance
 and a MySQL instance for the RDS suite. RDS has no emulator, and what is worth covering
 there is the connection string, the pool and the driver seam rather than
 anything AWS does, all of which a real database handles. Both engines are included, because a

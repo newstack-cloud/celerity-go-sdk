@@ -7,6 +7,11 @@ MODULES=(
   "config/aws"
   "config/local"
   "serverless/aws"
+  "resources/redis"
+  "resources/local"
   "resources/aws"
+  "telemetry/otel"
+  "resources/redis/otel"
+  "resources/sqldb/otel"
   "cmd/celerity-go"
 )

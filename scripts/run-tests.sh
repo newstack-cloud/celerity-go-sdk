@@ -87,6 +87,24 @@ production_packages() {
   go list ./... | grep -v "/tests" | paste -sd, -
 }
 
+# covered_by narrows production_packages to what a suite can actually reach.
+#
+# -coverpkg warns, once per run, for every pattern no package under test depends
+# on, and a warning that is expected on every run is one nobody reads. The
+# runtime suite is the case, it drives a real runtime over HTTP rather than
+# calling the SDK, so it reaches less of the module than the module's own tests
+# do. Narrowing loses no coverage, since a package a run cannot reach could
+# never have contributed any, and the run that does reach it reports it.
+#
+# Synthetic test variants, which go list spells "pkg [pkg.test]", are dropped:
+# they are the same package compiled for a test binary.
+covered_by() {
+  comm -12 \
+    <(go list ./... | grep -v "/tests" | sort) \
+    <(go list -deps -test -tags integration "$@" 2>/dev/null | grep -v " " | sort) \
+    | paste -sd, -
+}
+
 for module in "${MODULES[@]}"; do
   echo "testing $module"
   (cd "$ROOT/$module" && go_test "${GO_TEST_FLAGS[@]}" \
@@ -95,10 +113,14 @@ done
 
 if [ -n "$RUN_INTEGRATION" ]; then
   if [ -f "$ROOT/.env.test" ]; then
-    set -a
-    # shellcheck disable=SC1091
-    source "$ROOT/.env.test"
-    set +a
+    # Read rather than sourced, so that a value already exported wins. The file
+    # holds the defaults a machine with the compose services up wants; pointing
+    # a run somewhere else, at an AWS account say, is done by exporting the
+    # variables first, and a file of defaults must not undo that.
+    while IFS='=' read -r key value; do
+      case "$key" in ''|'#'*) continue ;; esac
+      [ -n "${!key+set}" ] || export "$key=$value"
+    done < "$ROOT/.env.test"
   fi
 
   compose() {
@@ -146,7 +168,7 @@ if [ -n "$RUN_INTEGRATION" ]; then
   echo "running the suite against a real runtime"
   go_test "${GO_TEST_FLAGS[@]}" -tags integration \
     -coverprofile="$(profile_for runtime-suite)" \
-    -coverpkg="$(production_packages)" ./tests/...
+    -coverpkg="$(covered_by ./tests/...)" ./tests/...
 
   # A provider module's own integration suite, against the services it calls
   # rather than a stand-in of them.

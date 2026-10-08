@@ -5,11 +5,27 @@
   "bump-minor-pre-major": true,
   "prerelease-type": "alpha",
   "changelog-sections": [
-    { "type": "feat", "section": "Features" },
-    { "type": "fix", "section": "Bug Fixes" },
-    { "type": "perf", "section": "Performance Improvements" },
-    { "type": "deps", "section": "Dependencies" },
-    { "type": "chore", "section": "Miscellaneous", "hidden": true }
+    {
+      "type": "feat",
+      "section": "Features"
+    },
+    {
+      "type": "fix",
+      "section": "Bug Fixes"
+    },
+    {
+      "type": "perf",
+      "section": "Performance Improvements"
+    },
+    {
+      "type": "deps",
+      "section": "Dependencies"
+    },
+    {
+      "type": "chore",
+      "section": "Miscellaneous",
+      "hidden": true
+    }
   ],
   "pull-request-title-pattern": "chore: release ${component} ${version}",
   "packages": {
@@ -21,6 +37,8 @@
         "config/aws",
         "config/local",
         "serverless/aws",
+        "resources/redis",
+        "resources/local",
         "resources/aws",
         "cmd/celerity-go"
       ]
@@ -40,6 +58,16 @@
       "component": "serverless/aws",
       "package-name": "serverless-aws"
     },
+    "resources/redis": {
+      "release-type": "go",
+      "component": "resources/redis",
+      "package-name": "resources-redis"
+    },
+    "resources/local": {
+      "release-type": "go",
+      "component": "resources/local",
+      "package-name": "resources-local"
+    },
     "resources/aws": {
       "release-type": "go",
       "component": "resources/aws",
@@ -49,6 +77,21 @@
       "release-type": "go",
       "component": "cmd/celerity-go",
       "package-name": "celerity-go-cli"
+    },
+    "telemetry/otel": {
+      "release-type": "go",
+      "component": "resources/redis",
+      "package-name": "resources-redis"
+    },
+    "resources/redis/otel": {
+      "release-type": "go",
+      "component": "resources/redis",
+      "package-name": "resources-redis"
+    },
+    "resources/sqldb/otel": {
+      "release-type": "go",
+      "component": "resources/redis",
+      "package-name": "resources-redis"
     }
   }
 }
