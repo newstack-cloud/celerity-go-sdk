@@ -5,7 +5,7 @@
   "serverless/aws": "0.1.0",
   "resources/redis": "0.1.0",
   "resources/local": "0.1.0",
-  "resources/aws": "0.1.0",
+  "resources/aws": "0.2.0",
   "cmd/celerity-go": "0.1.0",
   "telemetry/otel": "0.1.0",
   "resources/redis/otel": "0.1.0",
