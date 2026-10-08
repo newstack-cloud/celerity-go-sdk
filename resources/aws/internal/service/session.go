@@ -65,9 +65,16 @@ func (s *Session) Config(ctx context.Context) (aws.Config, error) {
 	s.once.Do(func() {
 		if s.load != nil {
 			s.cfg, s.loadErr = s.load(ctx)
-			return
+		} else {
+			s.cfg, s.loadErr = awsconfig.LoadDefaultConfig(ctx)
 		}
-		s.cfg, s.loadErr = awsconfig.LoadDefaultConfig(ctx)
+		if s.loadErr == nil {
+			// Added once, to the configuration every client in this process is
+			// built from, so a client built later traces without having to ask.
+			// A cache, a queue and a data store are separate clients over one
+			// configuration, which is why this is here rather than at each.
+			s.cfg.APIOptions = append(s.cfg.APIOptions, traceCalls)
+		}
 	})
 	if s.loadErr != nil {
 		return aws.Config{}, fmt.Errorf(
