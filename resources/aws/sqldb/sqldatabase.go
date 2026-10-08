@@ -143,24 +143,38 @@ func (d *rdsDatabase) build(
 func (d *rdsDatabase) openWith(
 	ctx context.Context, name string, settings connection, host string,
 ) (*sql.DB, error) {
-	if settings.authMode != resources.AuthIAM {
-		return sql.Open(name, settings.dsn(host, settings.password))
-	}
-
 	base, err := driverOf(name)
 	if err != nil {
 		return nil, err
 	}
-	return sql.OpenDB(&signingConnector{
+
+	// Both paths go through a connector, and through the seam that opens one,
+	// because instrumenting database/sql means wrapping the driver and there is
+	// nothing to wrap once a pool is open. A fixed connection string is the
+	// same connector with a build that answers the same thing every time.
+	return sqldb.Open(&signingConnector{
 		driver: base,
-		build: func(ctx context.Context) (string, error) {
-			token, err := d.token(ctx, settings, host)
-			if err != nil {
-				return "", err
-			}
-			return settings.dsn(host, token), nil
-		},
-	}), nil
+		build:  d.dsnBuilder(settings, host),
+	}, settings.engine)
+}
+
+// dsnBuilder is what a connection string is built from, per connection.
+func (d *rdsDatabase) dsnBuilder(
+	settings connection, host string,
+) func(context.Context) (string, error) {
+	if settings.authMode != resources.AuthIAM {
+		return func(context.Context) (string, error) {
+			return settings.dsn(host, settings.password), nil
+		}
+	}
+
+	return func(ctx context.Context) (string, error) {
+		token, err := d.token(ctx, settings, host)
+		if err != nil {
+			return "", err
+		}
+		return settings.dsn(host, token), nil
+	}
 }
 
 func (d *rdsDatabase) token(
