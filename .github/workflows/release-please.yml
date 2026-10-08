@@ -12,6 +12,7 @@ jobs:
       contents: write
       pull-requests: write
     outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
       paths_released: ${{ steps.release.outputs.paths_released }}
       cli_tag: ${{ steps.release.outputs['cmd/celerity-go--tag_name'] }}
     steps:
@@ -29,6 +30,38 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # Nothing publishes a Go module. A semver tag is the publication, and
+  # proxy.golang.org fetches from the repository the first time anybody asks for
+  # that version. What the ask does besides serve the module is record it in
+  # index.golang.org, which is where pkg.go.dev learns the version exists, so
+  # without one the documentation appears whenever the first consumer happens to
+  # fetch rather than when the release is announced.
+  #
+  # So this asks, once per module. It is a convenience rather than a
+  # requirement, and a failure is not worth failing the release over, since the
+  # tag has already done the publishing.
+  warm-proxy:
+    needs: release-please
+    if: needs.release-please.outputs.releases_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          check-latest: true
+
+      - name: Ask the proxy for each module that was released
+        continue-on-error: true
+        env:
+          # The public proxy rather than whatever a runner defaults to, since
+          # asking a mirror does not put the version in the index.
+          GOPROXY: https://proxy.golang.org
+          GOWORK: "off"
+          PATHS: ${{ needs.release-please.outputs.paths_released }}
+        run: bash scripts/warm-proxy.sh
 
   # The library modules need no publishing step beyond the tag: the Go module
   # proxy serves them from the repository. The build tool is a binary the
