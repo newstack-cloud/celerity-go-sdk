@@ -1,6 +1,7 @@
 package datastore_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/newstack-cloud/celerity-go-sdk/resources/aws/internal/awstest"
@@ -26,10 +27,15 @@ func (s *BatchTestSuite) store(api *fakeDynamo) datastore.Client {
 	return datastoreOn(s.T(), api)
 }
 
+// n keys in one partition, each distinct.
+//
+// Distinct matters rather than being tidy: a batch is addressed by key, and
+// DynamoDB refuses a request that names the same key twice, so a fixture that
+// repeated them would describe a batch no service would accept.
 func keys(n int) []datastore.Key {
 	built := make([]datastore.Key, n)
 	for i := range built {
-		built[i] = datastore.Key{Partition: "c-1", Sort: string(rune('a' + i%26))}
+		built[i] = datastore.Key{Partition: "c-1", Sort: fmt.Sprintf("k-%03d", i)}
 	}
 	return built
 }
@@ -108,9 +114,10 @@ func (s *BatchTestSuite) Test_a_batch_get_does_not_leak_the_revision_attribute()
 func (s *BatchTestSuite) Test_a_batch_write_is_split_to_twenty_five_operations_a_request() {
 	api := &fakeDynamo{table: compositeTable()}
 
-	ops := make([]datastore.BatchOp, 60)
-	for i := range ops {
-		ops[i] = datastore.PutOp(keys(60)[i], order{Total: i})
+	written := keys(60)
+	ops := make([]datastore.BatchOp, len(written))
+	for i, key := range written {
+		ops[i] = datastore.PutOp(key, order{Total: i})
 	}
 
 	missed, err := s.store(api).BatchWrite(awstest.Ctx(), ops)
