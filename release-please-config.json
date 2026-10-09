@@ -1,6 +1,6 @@
 {
-  "include-component-in-tag": true,
-  "tag-separator": "/",
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "include-component-in-tag": false,
   "separate-pull-requests": false,
   "bump-minor-pre-major": true,
   "prerelease-type": "alpha",
@@ -27,92 +27,11 @@
       "hidden": true
     }
   ],
-  "pull-request-title-pattern": "chore: release ${component} ${version}",
+  "pull-request-title-pattern": "chore: release ${version}",
   "packages": {
     ".": {
       "release-type": "go",
-      "package-name": "celerity-go-sdk",
-      "include-component-in-tag": false,
-      "exclude-paths": [
-        "cmd/celerity-go",
-        "config/aws",
-        "config/local",
-        "resources/aws",
-        "resources/local",
-        "resources/redis",
-        "resources/redis/otel",
-        "resources/sqldb/otel",
-        "serverless/aws",
-        "telemetry/otel"
-      ]
-    },
-    "config/aws": {
-      "release-type": "go",
-      "component": "config/aws",
-      "package-name": "config-aws"
-    },
-    "config/local": {
-      "release-type": "go",
-      "component": "config/local",
-      "package-name": "config-local"
-    },
-    "serverless/aws": {
-      "release-type": "go",
-      "component": "serverless/aws",
-      "package-name": "serverless-aws"
-    },
-    "resources/redis": {
-      "release-type": "go",
-      "component": "resources/redis",
-      "package-name": "resources-redis"
-    },
-    "resources/local": {
-      "release-type": "go",
-      "component": "resources/local",
-      "package-name": "resources-local"
-    },
-    "resources/aws": {
-      "release-type": "go",
-      "component": "resources/aws",
-      "package-name": "resources-aws"
-    },
-    "cmd/celerity-go": {
-      "release-type": "go",
-      "component": "cmd/celerity-go",
-      "package-name": "celerity-go-cli"
-    },
-    "telemetry/otel": {
-      "release-type": "go",
-      "component": "telemetry/otel",
-      "package-name": "telemetry-otel"
-    },
-    "resources/redis/otel": {
-      "release-type": "go",
-      "component": "resources/redis/otel",
-      "package-name": "resources-redis-otel"
-    },
-    "resources/sqldb/otel": {
-      "release-type": "go",
-      "component": "resources/sqldb/otel",
-      "package-name": "resources-sqldb-otel"
+      "package-name": "celerity-go-sdk"
     }
-  },
-  "plugins": [
-    {
-      "type": "linked-versions",
-      "groupName": "celerity-go-sdk",
-      "components": [
-        "config/aws",
-        "config/local",
-        "serverless/aws",
-        "resources/redis",
-        "resources/local",
-        "resources/aws",
-        "cmd/celerity-go",
-        "telemetry/otel",
-        "resources/redis/otel",
-        "resources/sqldb/otel"
-      ]
-    }
-  ]
+  }
 }

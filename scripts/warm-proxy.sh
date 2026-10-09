@@ -12,17 +12,16 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPT_DIR/modules.sh"
 
 MANIFEST="$ROOT/.release-please-manifest.json"
 MODULE_PATH="github.com/newstack-cloud/celerity-go-sdk"
 
-if [ -z "${PATHS:-}" ] || [ "$PATHS" = "[]" ]; then
-  echo "no module was released, so there is nothing to ask for"
-  exit 0
+version=$(sed -n 's|^[[:space:]]*"\.": "\([^"]*\)".*|\1|p' "$MANIFEST")
+if [ -z "$version" ]; then
+  echo "no version for \".\" in $(basename "$MANIFEST")" >&2
+  exit 1
 fi
-
-# The directories released, one per line, out of the JSON array.
-released=$(printf '%s' "$PATHS" | tr -d '[]"' | tr ',' '\n' | sed 's/^ *//;s/ *$//')
 
 asking=$(mktemp -d)
 trap 'rm -rf "$asking"' EXIT
@@ -37,16 +36,7 @@ export GOWORK=off
 
 failed=0
 
-while read -r dir; do
-  [ -z "$dir" ] && continue
-
-  version=$(sed -n "s|^[[:space:]]*\"${dir//\//\\/}\": \"\([^\"]*\)\".*|\1|p" "$MANIFEST")
-  if [ -z "$version" ]; then
-    echo "no version in the manifest for \"$dir\", so it was not asked for" >&2
-    failed=$((failed + 1))
-    continue
-  fi
-
+for dir in "${MODULES[@]}"; do
   if [ "$dir" = "." ]; then
     module="$MODULE_PATH"
   else
@@ -59,7 +49,7 @@ while read -r dir; do
     echo "  own requirements names a version that was never tagged" >&2
     failed=$((failed + 1))
   fi
-done <<< "$released"
+done
 
 if [ "$failed" -gt 0 ]; then
   echo ""

@@ -13,8 +13,9 @@ jobs:
       pull-requests: write
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
-      paths_released: ${{ steps.release.outputs.paths_released }}
-      cli_tag: ${{ steps.release.outputs['cmd/celerity-go--tag_name'] }}
+      prs_created: ${{ steps.release.outputs.prs_created }}
+      pr_branch: ${{ fromJSON(steps.release.outputs.pr || '{}').headBranchName }}
+      tag: ${{ steps.release.outputs.tag_name }}
     steps:
       # GITHUB_TOKEN is enough for this repository, so the workflow runs without
       # any secret being configured. The one thing it cannot do is trigger
@@ -31,6 +32,69 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+  # release-please bumps .release-please-manifest.json and leaves go.mod alone,
+  # because a module's require of a sibling is an ordinary dependency as far as
+  # it is concerned. Left that way the released modules require versions that
+  # were never tagged, which breaks every consumer while every check here stays
+  # green, so the requirements are brought along in the release pull request and
+  # land in the same commit as the manifest.
+  sync-versions:
+    needs: release-please
+    if: needs.release-please.outputs.prs_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release-please.outputs.pr_branch }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          check-latest: true
+
+      - name: Point each requirement at the version being released
+        run: bash scripts/sync-module-versions.sh
+
+      # release-please rewrites this branch whenever the release changes, which
+      # discards this commit. The workflow runs again on that push, so it is
+      # reapplied rather than lost.
+      - name: Commit the requirements with the release
+        run: |
+          if git diff --quiet; then
+            echo "every requirement already named the version being released"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: point module requirements at the release version"
+          git push
+
+  # release-please manages one package, which is the repository, so it creates
+  # one tag. Go needs one per module, named for the directory it is in, since a
+  # module in a subdirectory is only fetchable at <subdir>/vX.Y.Z.
+  tag-modules:
+    needs: release-please
+    if: needs.release-please.outputs.releases_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # Tags and full history, since the fan-out reads the commit the release
+      # was cut from and a shallow checkout carries neither.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Tag every module at the release version
+        env:
+          TAG: ${{ needs.release-please.outputs.tag }}
+        run: bash scripts/tag-modules.sh
+
   # Nothing publishes a Go module. A semver tag is the publication, and
   # proxy.golang.org fetches from the repository the first time anybody asks for
   # that version. What the ask does besides serve the module is record it in
@@ -42,7 +106,7 @@ jobs:
   # requirement, and a failure is not worth failing the release over, since the
   # tag has already done the publishing.
   warm-proxy:
-    needs: release-please
+    needs: [release-please, tag-modules]
     if: needs.release-please.outputs.releases_created == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -60,7 +124,6 @@ jobs:
           # asking a mirror does not put the version in the index.
           GOPROXY: https://proxy.golang.org
           GOWORK: "off"
-          PATHS: ${{ needs.release-please.outputs.paths_released }}
         run: bash scripts/warm-proxy.sh
 
   # The library modules need no publishing step beyond the tag: the Go module
@@ -72,8 +135,8 @@ jobs:
   # that arrives before the release exists, would leave a published release with
   # nothing attached to it.
   build-cli:
-    needs: release-please
-    if: contains(fromJSON(needs.release-please.outputs.paths_released || '[]'), 'cmd/celerity-go')
+    needs: [release-please, tag-modules]
+    if: needs.release-please.outputs.releases_created == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -95,7 +158,7 @@ jobs:
       - name: Build release archives
         env:
           GOWORK: "off"
-          TAG: ${{ needs.release-please.outputs.cli_tag }}
+          TAG: cmd/celerity-go/${{ needs.release-please.outputs.tag }}
         run: bash scripts/package-cli.sh
 
       - uses: actions/attest-build-provenance@v3
@@ -105,5 +168,5 @@ jobs:
       - name: Attach archives to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.release-please.outputs.cli_tag }}
+          TAG: cmd/celerity-go/${{ needs.release-please.outputs.tag }}
         run: gh release upload "$TAG" cmd/celerity-go/dist/* --clobber

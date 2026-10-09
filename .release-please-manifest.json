@@ -1,13 +1,3 @@
 {
-  ".": "0.2.0",
-  "config/aws": "0.2.0",
-  "config/local": "0.2.0",
-  "serverless/aws": "0.2.0",
-  "resources/redis": "0.2.0",
-  "resources/local": "0.2.0",
-  "resources/aws": "0.2.0",
-  "cmd/celerity-go": "0.2.0",
-  "telemetry/otel": "0.2.0",
-  "resources/redis/otel": "0.2.0",
-  "resources/sqldb/otel": "0.2.0"
+  ".": "0.2.0"
 }

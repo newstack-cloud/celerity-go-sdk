@@ -110,8 +110,8 @@ jobs:
       # build, once the modules are published.
       #
       # Skipped on a release, where the manifest is bumped ahead of the
-      # requirements by construction and the release-sync workflow is what
-      # brings them along.
+      # requirements by construction and the release workflow's sync-versions
+      # job is what brings them along.
       - name: Check each module requires the version its sibling is released at
         if: ${{ !startsWith(github.head_ref, 'release-please--') }}
         run: bash scripts/sync-module-versions.sh --check
