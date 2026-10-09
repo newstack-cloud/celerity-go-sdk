@@ -6,12 +6,6 @@ a provider's serverless environment without changing a line.
 See [celerityframework.io](https://celerityframework.io) for the framework
 documentation.
 
-> **Status: early.** The protocol client, the registration API, the module
-> layout, configuration, the AWS resource implementations, the AWS Lambda
-> adapter, telemetry, the testing harness and handler extraction are in place.
-> The Celerity CLI does not yet know how to build a Go application, so until
-> that lands the build tool is driven by hand.
-
 ## Installing
 
 ```bash

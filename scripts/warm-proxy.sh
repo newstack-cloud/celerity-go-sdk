@@ -28,6 +28,10 @@ asking=$(mktemp -d)
 trap 'rm -rf "$asking"' EXIT
 (cd "$asking" && go mod init warm-proxy >/dev/null 2>&1)
 
+# -mod=mod so the fetch may write the scratch module's own go.mod, which is
+# what a consumer adding the dependency does.
+export GOFLAGS=-mod=mod
+
 # Off, so a workspace inherited from the environment cannot answer either.
 export GOWORK=off
 
@@ -49,15 +53,17 @@ while read -r dir; do
     module="$MODULE_PATH/$dir"
   fi
 
-  echo "asking for $module@v$version"
-  if ! (cd "$asking" && go list -m "$module@v$version"); then
-    echo "  the proxy did not serve it, which the next consumer to fetch will fix" >&2
+  echo "fetching $module@v$version"
+  if ! (cd "$asking" && go get "$module@v$version"); then
+    echo "  a consumer cannot use this version, which usually means one of its" >&2
+    echo "  own requirements names a version that was never tagged" >&2
     failed=$((failed + 1))
   fi
 done <<< "$released"
 
 if [ "$failed" -gt 0 ]; then
   echo ""
-  echo "$failed module(s) were not served. The tags are what publish them, so the"
-  echo "release stands; pkg.go.dev will catch up on the first fetch."
+  echo "$failed module(s) could not be fetched. The tags have already published"
+  echo "them and a published version cannot be changed, so fixing this means"
+  echo "releasing again with scripts/sync-module-versions.sh having run."
 fi
