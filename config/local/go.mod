@@ -3,7 +3,7 @@ module github.com/newstack-cloud/celerity-go-sdk/config/local
 go 1.26.0
 
 require (
-	github.com/newstack-cloud/celerity-go-sdk v0.2.0
+	github.com/newstack-cloud/celerity-go-sdk v0.2.1
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/stretchr/testify v1.12.1
 )

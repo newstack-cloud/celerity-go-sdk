@@ -7,7 +7,7 @@ go 1.26.0
 replace github.com/newstack-cloud/celerity-go-sdk => ../..
 
 require (
-	github.com/newstack-cloud/celerity-go-sdk v0.2.0
+	github.com/newstack-cloud/celerity-go-sdk v0.2.1
 	go.opentelemetry.io/contrib/propagators/aws v1.47.0
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.47.0

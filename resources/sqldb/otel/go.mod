@@ -8,7 +8,7 @@ replace github.com/newstack-cloud/celerity-go-sdk => ../../..
 
 require (
 	github.com/XSAM/otelsql v0.42.0
-	github.com/newstack-cloud/celerity-go-sdk v0.2.0
+	github.com/newstack-cloud/celerity-go-sdk v0.2.1
 	go.opentelemetry.io/otel v1.42.0
 )
 
