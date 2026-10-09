@@ -17,9 +17,16 @@ source "$SCRIPT_DIR/modules.sh"
 MANIFEST="$ROOT/.release-please-manifest.json"
 MODULE_PATH="github.com/newstack-cloud/celerity-go-sdk"
 
-version=$(sed -n 's|^[[:space:]]*"\.": "\([^"]*\)".*|\1|p' "$MANIFEST")
+# The tag release-please created, which is what was actually published. The
+# manifest is the fallback so the script is usable by hand, and the two agree on
+# main because merging the release pull request is what bumps it.
+if [ -n "${TAG:-}" ]; then
+  version="${TAG#v}"
+else
+  version=$(sed -n 's|^[[:space:]]*"\.": "\([^"]*\)".*|\1|p' "$MANIFEST")
+fi
 if [ -z "$version" ]; then
-  echo "no version for \".\" in $(basename "$MANIFEST")" >&2
+  echo "no version: set TAG, or name one for \".\" in $(basename "$MANIFEST")" >&2
   exit 1
 fi
 

@@ -32,6 +32,48 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+  # release-please declines to release by logging and carrying on, so a
+  # configuration it cannot act on leaves a green run that released nothing and
+  # tagged nothing. Worse, it then refuses to open any further release pull
+  # request while a merged one is still pending, so the repository stops
+  # releasing silently until somebody notices. That state is exactly this, a
+  # merged release pull request that never had its label flipped to tagged.
+  #
+  # Checked rather than inferred from the outputs, since a push carrying only
+  # hidden commits legitimately produces neither a release nor a pull request.
+  check-not-stalled:
+    needs: release-please
+    if: always() && needs.release-please.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Fail if a merged release is still untagged
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          stalled=$(gh pr list \
+            --state merged \
+            --label "autorelease: pending" \
+            --limit 10 \
+            --json number \
+            --jq 'map("#\(.number)") | join(" ")')
+
+          if [ -z "$stalled" ]; then
+            echo "no merged release is waiting to be tagged"
+            exit 0
+          fi
+
+          echo "::error::$stalled merged but never tagged. release-please will"
+          echo "::error::open no further release pull request until this clears."
+          echo "::error::Check the release-please step's log for the reason it"
+          echo "::error::declined, which it reports as a warning rather than a"
+          echo "::error::failure. A component mismatch between the release"
+          echo "::error::branch and the configured package is the usual one."
+          exit 1
+
   # release-please bumps .release-please-manifest.json and leaves go.mod alone,
   # because a module's require of a sibling is an ordinary dependency as far as
   # it is concerned. Left that way the released modules require versions that
@@ -124,6 +166,7 @@ jobs:
           # asking a mirror does not put the version in the index.
           GOPROXY: https://proxy.golang.org
           GOWORK: "off"
+          TAG: ${{ needs.release-please.outputs.tag }}
         run: bash scripts/warm-proxy.sh
 
   # The library modules need no publishing step beyond the tag: the Go module
@@ -165,8 +208,13 @@ jobs:
         with:
           subject-path: cmd/celerity-go/dist/*.tar.gz
 
+      # The repository's own release, not the build tool's module tag. One
+      # release-please package means one GitHub release, and the module tags the
+      # fan-out creates are git tags with no release behind them, so uploading to
+      # cmd/celerity-go/vX.Y.Z would ask for something that does not exist. The
+      # archives carry the version in their names either way.
       - name: Attach archives to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: cmd/celerity-go/${{ needs.release-please.outputs.tag }}
+          TAG: ${{ needs.release-please.outputs.tag }}
         run: gh release upload "$TAG" cmd/celerity-go/dist/* --clobber

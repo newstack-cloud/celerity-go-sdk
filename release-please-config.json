@@ -27,11 +27,9 @@
       "hidden": true
     }
   ],
-  "pull-request-title-pattern": "chore: release ${version}",
   "packages": {
     ".": {
-      "release-type": "go",
-      "package-name": "celerity-go-sdk"
+      "release-type": "go"
     }
   }
 }
