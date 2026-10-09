@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/newstack-cloud/celerity-go-sdk/compare/v0.2.0...v0.2.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* correct release process to be compatible with release please ([45fa6ae](https://github.com/newstack-cloud/celerity-go-sdk/commit/45fa6ae53861446917994321b027d7a0143075e7))
+* update warm proxy script to force 0.2.1 due to broken 0.2.0 release ([aaf23d3](https://github.com/newstack-cloud/celerity-go-sdk/commit/aaf23d30e67442be21637f016ad3452496b7a1a1))
+
 ## [0.2.0](https://github.com/newstack-cloud/celerity-go-sdk/compare/v0.1.0...v0.2.0) (2026-10-08)
 
 

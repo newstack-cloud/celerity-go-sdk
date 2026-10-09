@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.5
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.50.0
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.78.0
-	github.com/newstack-cloud/celerity-go-sdk v0.2.0
+	github.com/newstack-cloud/celerity-go-sdk v0.2.1
 	github.com/stretchr/testify v1.12.1
 )
 

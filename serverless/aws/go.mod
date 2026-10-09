@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-lambda-go v1.55.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.5
 	github.com/aws/aws-sdk-go-v2/service/apigatewaymanagementapi v1.37.0
-	github.com/newstack-cloud/celerity-go-sdk v0.2.0
+	github.com/newstack-cloud/celerity-go-sdk v0.2.1
 	github.com/stretchr/testify v1.12.1
 )
 
