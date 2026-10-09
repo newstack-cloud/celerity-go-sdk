@@ -1,5 +1,7 @@
 # Celerity Go SDK
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/newstack-cloud/celerity-go-sdk.svg)](https://pkg.go.dev/github.com/newstack-cloud/celerity-go-sdk)
+
 Write your handlers once, and run them in a containerised Celerity runtime or in
 a provider's serverless environment without changing a line.
 
