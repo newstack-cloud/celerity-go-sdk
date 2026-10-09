@@ -5,7 +5,7 @@ set -uo pipefail
 #
 # Nothing publishes a Go module. A semver tag is the publication, and
 # proxy.golang.org fetches from the repository the first time anybody asks for
-# that version. The ask also records the version in index.golang.org, which is
+# that version. The request also records the version in index.golang.org, which is
 # where pkg.go.dev learns it exists, so without one the documentation appears
 # whenever the first consumer happens to fetch rather than when the release is
 # announced.
