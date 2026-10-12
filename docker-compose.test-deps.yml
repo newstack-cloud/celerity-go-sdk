@@ -91,7 +91,7 @@ services:
       retries: 15
 
   mysql:
-    image: mysql:9.5
+    image: mysql:9.7
     environment:
       MYSQL_ROOT_PASSWORD: local-root
       MYSQL_USER: orders_app
