@@ -78,15 +78,15 @@ Conventional commits, enforced by commitlint through `.githooks/commit-msg`.
 
 ```
 feat(core): register websocket handlers by route key
-fix(ipc): grant credit when a handler panics
-docs(repo): describe the two-pass extraction
+fix(core): grant credit when a handler panics
+docs: describe the two-pass extraction
 ```
 
 **Types**: `feat`, `fix`, `build`, `revert`, `wip`, `chore`, `ci`, `docs`,
 `style`, `refactor`, `perf`, `test`, `instr`, `deps`
 
-**Scopes**: one per release unit, so a scope names the module a commit releases
-and nothing finer.
+**Scopes**: one per module, so a scope names the module a commit changes and
+nothing finer. `commitlint.config.js` holds the list.
 
 | Scope | Module | Import path |
 |---|---|---|
@@ -94,13 +94,16 @@ and nothing finer.
 | `serverless-aws` | `serverless/aws` | `.../serverless/aws` |
 | `resources-aws` | `resources/aws` | `.../resources/aws` |
 | `resources-redis` | `resources/redis` | `.../resources/redis` |
+| `resources-local` | `resources/local` | `.../resources/local` |
+| `resources-redis-otel` | `resources/redis/otel` | `.../resources/redis/otel` |
+| `resources-sqldb-otel` | `resources/sqldb/otel` | `.../resources/sqldb/otel` |
+| `telemetry-otel` | `telemetry/otel` | `.../telemetry/otel` |
 | `config-aws` | `config/aws` | `.../config/aws` |
 | `config-local` | `config/local` | `.../config/local` |
 | `cli` | `cmd/celerity-go` | `.../cmd/celerity-go` |
 | `deps` | — | dependency updates belonging to no module |
 
-A scope naming a package rather than a module would read as though it decided
-which module released, which it does not, and would drift as packages move
+A scope naming a package rather than a module would drift as packages move
 between modules.
 
 The scope is optional. A repository-wide change that belongs to no module is
@@ -109,41 +112,27 @@ scope for it.
 
 ## Releases
 
-release-please opens a release PR per module. Merging it tags the module; Go
-derives a submodule's version from a tag carrying its directory prefix, so
-`serverless/aws` releases as `serverless/aws/v0.2.0` and core as `v0.2.0`.
+Every module releases together, at one version. release-please keeps one release pull request
+for the repository; merging it tags the root module (`v0.2.1`), and `scripts/tag-modules.sh`
+tags every other module at the same version with its directory prefix
+(`serverless/aws/v0.2.1`), as Go requires. There is one changelog, at the root.
 
-**A commit belongs to a module by the files it touches, not by its scope.**
-Editing `serverless/aws/adapter.go` releases `serverless/aws` whatever the
-commit says; `feat(serverless-aws): ...` on a commit that only edits core
-releases core. The scope drives the changelog and the PR title and nothing else,
-so it is worth keeping it honest, but it is not what routes the release.
+Every module shares that release, whatever a commit's scope. Only `feat`, `fix`, `perf` and
+`deps` release and appear in the changelog, so use another type (`ci`, `docs`, `chore`,
+`refactor`, `style` or `test`) for changes that don't change what a module does.
 
-Two consequences of core being the repository root:
+CI builds each module with `GOWORK=off`, against its own `go.mod` and `replace` directives
+rather than the workspace.
 
-- Core would otherwise pick up every change in the repository, including the
-  submodules'. `exclude-paths` in `release-please-config.json` keeps their
-  directories out of it, so a `resources/aws` fix does not also bump core.
-- Everything else at the root, the workflows, scripts, README and this file, is
-  still core's. Use a type that does not release for those, `ci`, `docs`,
-  `chore`, `refactor`, `style` or `test`, and reserve `feat` and `fix` for
-  commits that change what core does. A `docs:` commit touching only the README
-  produces no release; a `fix:` commit touching only the README produces one
-  that changes no code.
-
-Modules are versioned independently: a `resources/aws` fix should not bump core.
-CI builds each module with `GOWORK=off`, so a workspace replace cannot mask a
-`require` that a consumer would fail to resolve. For the same reason, when the
-build tool's `require` of core moves, core is released first.
-
-Library modules need no publishing step beyond the tag. `cmd/celerity-go` is
-built and attached to its release by a job of the same workflow, using
-`scripts/package-cli.sh`; run it locally with a `TAG` to see what a release
-carries:
+Library modules need no publishing step beyond the tag. `cmd/celerity-go` is built and
+attached to its release by a job of the same workflow, using `scripts/package-cli.sh`; run it
+locally with a `TAG` to see what a release carries:
 
 ```bash
 TAG=cmd/celerity-go/v0.1.0 bash scripts/package-cli.sh
 ```
+
+Why it works this way, and what broke the releases that didn't: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Tests
 
