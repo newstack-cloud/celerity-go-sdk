@@ -36,7 +36,6 @@ node_modules/
 .DS_Store
 .idea/
 
-CLAUDE.md
 
 # Ignore the output binary of the test app but not its source code.
 testapp
