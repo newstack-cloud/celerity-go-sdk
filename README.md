@@ -5,7 +5,7 @@
 Write your handlers once, and run them in a containerised Celerity runtime or in
 a provider's serverless environment without changing a line.
 
-See [celerityframework.io](https://celerityframework.io) for the framework
+See [celerity.dev](https://celerity.dev) for the framework
 documentation.
 
 ## Installing
@@ -204,7 +204,7 @@ for order, err := range datastore.Items[Order](ctx, orders, query) {
 Each interface carries what its own kind needs beyond that: sort conditions and
 conditional writes on a data store, ranged reads and versions on a bucket,
 partial-failure results on a queue or a topic, separate writer and reader pools
-on a SQL database. The [framework documentation](https://celerityframework.io)
+on a SQL database. The [framework documentation](https://celerity.dev)
 covers each in full, including which of them cost an extra request on which
 provider.
 
@@ -424,7 +424,7 @@ startup from the platform either way, so an application does nothing.
 This README is an outline. The guides live in the Go SDK section of the
 framework documentation, which is where to look for anything in depth.
 
-- [Framework documentation](https://celerityframework.io)
+- [Framework documentation](https://celerity.dev)
 - [Contributing](./CONTRIBUTING.md)
 - [Dependency updates](./docs/RENOVATE.md)
 

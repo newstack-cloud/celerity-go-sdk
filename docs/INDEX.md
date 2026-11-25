@@ -10,4 +10,4 @@
 
 - [README](../README.md)
 - [Contributing](../CONTRIBUTING.md)
-- [Framework documentation](https://celerityframework.io)
+- [Framework documentation](https://celerity.dev)
