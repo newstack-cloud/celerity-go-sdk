@@ -1,7 +1,7 @@
 {
   "$comment": [
     "Conformance vectors for the Celerity Binary Message Format.",
-    "https://celerityframework.io/docs/framework/applications/resources/celerity-api#celerity-binary-message-format",
+    "https://celerity.dev/docs/framework/applications/resources/celerity-api#celerity-binary-message-format",
     "A published wire format has one implementation per language, so parity is asserted",
     "against these rather than assumed. Asserted by the TypeScript encoder in",
     "packages/types/tests/binary-frame.test.ts and by the Rust encoder that serves the",
